@@ -218,3 +218,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Ignore raw capstone datasets
+*.csv
+*.parquet
+*.xlsx
