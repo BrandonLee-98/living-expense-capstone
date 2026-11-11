@@ -66,8 +66,8 @@ def render_image(filename: str, caption: str, base_dir: str):
     """Searches common directories for the image and renders it, or shows an explicit error."""
     search_paths = [
         os.path.join(base_dir, filename),                                    # Root dir
-        os.path.join(base_dir, "Phase03_figures", filename),                 # Subfolder
-        os.path.join(base_dir, "extracted_figures", "Phase03_figures", filename) # Zip extraction path
+        os.path.join(base_dir, "figures", filename),                 # Subfolder
+        os.path.join(base_dir, "extracted_figures", "figures", filename) # Zip extraction path
     ]
     
     for path in search_paths:
