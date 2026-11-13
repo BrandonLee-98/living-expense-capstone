@@ -7,6 +7,9 @@ import shap
 import matplotlib.pyplot as plt
 import math
 import sqlite3
+import io
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
 # ==========================================
 # 1. INITIALIZATION & CONFIGURATION
@@ -124,6 +127,50 @@ def find_nearest_arbitrage_zip(df, target_row):
 # ==========================================
 def calculate_twia_surcharge(twia_flag, multiplier):
     return 125.0 * multiplier if twia_flag == 1 else 0.0
+
+# ==========================================
+# 4.5. EXECUTIVE PDF REPORT GENERATOR
+# ==========================================
+def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food, utils, twia, hoa):
+    """Generates an in-memory PDF executive summary of the cost breakdown."""
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+    
+    # Title Header
+    p.setFont("Helvetica-Bold", 18)
+    p.drawString(50, 750, f"Non-Mortgage Living Expense Estimate")
+    
+    # Location Details
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(50, 710, f"Location: ZIP {zip_code} | {city}")
+    p.setFont("Helvetica", 12)
+    p.drawString(50, 690, f"Classification: {archetype}")
+    p.drawString(50, 670, f"5-Year Population Growth: {pop_growth:+.1f}%")
+    
+    # Cost Breakdown
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(50, 630, "Monthly Cost Breakdown")
+    p.setFont("Helvetica", 12)
+    p.drawString(50, 610, f"Estimated Groceries & Food: ${food:,.2f}")
+    p.drawString(50, 590, f"Estimated Utilities (Power/Water/Gas): ${utils:,.2f}")
+    p.drawString(50, 570, f"Mandatory TWIA Coastal Surcharge: ${twia:,.2f}")
+    p.drawString(50, 550, f"Optional HOA / Maintenance: ${hoa:,.2f}")
+    
+    # Total Cost Line
+    p.setLineWidth(1)
+    p.line(50, 535, 300, 535)
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(50, 515, f"Total Estimated Occupancy Cost: ${total_cost:,.2f}")
+    
+    # Disclaimer
+    p.setFont("Helvetica-Oblique", 9)
+    p.drawString(50, 460, "Note: This estimate relies on predictive machine learning models and spatial proximity math.")
+    p.drawString(50, 445, "Results should be used for informational planning purposes only.")
+    
+    p.showPage()
+    p.save()
+    buffer.seek(0)
+    return buffer
 
 # ==========================================
 # 5. MAIN APPLICATION
@@ -279,6 +326,23 @@ def main():
     with col5:
         st.metric("5-Yr Pop Growth", f"{pop_growth_pct:+.1f}%")
 
+    st.markdown("---")
+
+    # --- PDF EXPORT COMPONENT ---
+    pdf_buffer = generate_pdf_report(
+        zip_query, city_name, archetype, pop_growth_pct, 
+        total_cost, pred_food, pred_utils, pred_twia, pred_hoa
+    )
+    
+    col_pdf1, col_pdf2 = st.columns([1, 4])
+    with col_pdf1:
+        st.download_button(
+            label="📄 Download Executive PDF",
+            data=pdf_buffer,
+            file_name=f"Expense_Report_{zip_query}.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
     st.markdown("---")
 
     # --- DEEP DIVE TABS ---
