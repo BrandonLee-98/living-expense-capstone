@@ -923,7 +923,7 @@ def main():
         * **Coastal Windstorm Surcharges (TWIA):** Calculated deterministically ($125/mo policy surcharge) directly from Texas Department of Insurance (TDI) eligibility boundaries.
         * **USDA Grocery Tiers:** Scaled using official USDA economy-of-scale formulas based on the selected household budget profile (Thrifty, Low-Cost, Moderate, Liberal).
         """)
-with tab8:
+    with tab8:
         st.header("🧪 Live System Diagnostics & Automated Testing")
         st.markdown("""
         This control panel executes real-time unit tests against the core mathematical and spatial routing engines 
