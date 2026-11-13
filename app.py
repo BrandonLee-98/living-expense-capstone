@@ -162,7 +162,7 @@ def generate_ai_narrative(city, total, food, utils, twia, is_optimal, alt_zip=No
 
 def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food, utils, twia, hoa, 
                         is_optimal, alt_zip, alt_city, alt_total, alt_food, alt_utils, alt_twia, alt_hoa, ai_summary=""):
-    """Generates an in-memory PDF executive summary displaying target and alternative arbitrage metrics."""
+    """Generates a premium, enterprise-styled PDF executive summary."""
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
@@ -172,86 +172,133 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
     p.rect(0, height - 100, width, 100, fill=1, stroke=0)
     
     p.setFillColorRGB(1, 1, 1) 
-    p.setFont("Helvetica-Bold", 20)
-    p.drawString(50, height - 45, "Non-Mortgage Living Expense Estimate")
+    p.setFont("Helvetica-Bold", 22)
+    p.drawString(40, height - 45, "Non-Mortgage Living Expense Estimate")
+    
     p.setFont("Helvetica", 12)
-    p.drawString(50, height - 70, f"Target Profile: ZIP {zip_code} | {city}")
+    p.setFillColorRGB(0.7, 0.8, 0.9) # Light blue accent
+    p.drawString(40, height - 70, f"Target Profile: ZIP {zip_code} | {city}")
     
     # --- 2. Classification & Growth ---
+    p.setFillColorRGB(0, 0, 0)
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(40, height - 130, "Regional Classification:")
+    p.setFont("Helvetica", 12)
+    p.drawString(200, height - 130, archetype)
+    
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(40, height - 150, "5-Year Pop Growth:")
+    p.setFont("Helvetica", 12)
+    # Color code the growth metric
+    if pop_growth > 0:
+        p.setFillColorRGB(0.1, 0.6, 0.1) # Green
+    else:
+        p.setFillColorRGB(0.8, 0.1, 0.1) # Red
+    p.drawString(200, height - 150, f"{pop_growth:+.1f}%")
     p.setFillColorRGB(0, 0, 0) 
-    p.setFont("Helvetica-Bold", 12)
-    p.drawString(50, height - 140, "Regional Classification:")
-    p.setFont("Helvetica", 12)
-    p.drawString(220, height - 140, archetype)
     
-    p.setFont("Helvetica-Bold", 12)
-    p.drawString(50, height - 160, "5-Year Pop Growth:")
-    p.setFont("Helvetica", 12)
-    p.drawString(220, height - 160, f"{pop_growth:+.1f}%")
+    # --- 3. Cost Breakdown Table ---
+    y_pos = height - 190
+    p.setLineWidth(1.5)
+    p.setStrokeColorRGB(0.2, 0.2, 0.2)
+    p.line(40, y_pos, width - 40, y_pos)
     
-    # --- 3. Cost Breakdown Grid ---
-    p.setLineWidth(1)
-    p.setStrokeColorRGB(0.8, 0.8, 0.8) 
-    p.line(50, height - 190, width - 50, height - 190)
-    
-    # Header Row
+    y_pos -= 20
     p.setFont("Helvetica-Bold", 14)
-    p.drawString(50, height - 220, "Itemized Cost Breakdown")
-    p.setFont("Helvetica-Bold", 12)
-    p.drawRightString(width - 160, height - 220, "Target")
-    if not is_optimal:
-        p.drawRightString(width - 50, height - 220, "Arbitrage Alt.")
+    p.drawString(40, y_pos, "Itemized Cost Breakdown")
     
-    # Cost Items
-    p.setFont("Helvetica", 12)
-    y_pos = height - 250
+    # Table Headers
+    p.setFont("Helvetica-Bold", 11)
+    p.drawRightString(width - 150, y_pos, "Target")
+    if not is_optimal:
+        p.drawRightString(width - 40, y_pos, "Arbitrage Alt.")
+        p.setFont("Helvetica-Oblique", 9)
+        p.setFillColorRGB(0.4, 0.4, 0.4)
+        p.drawRightString(width - 40, y_pos - 12, f"ZIP {alt_zip}")
+        p.setFillColorRGB(0, 0, 0)
+        
+    y_pos -= 25
+    p.setLineWidth(0.5)
+    p.setStrokeColorRGB(0.7, 0.7, 0.7)
+    p.line(40, y_pos, width - 40, y_pos)
+    y_pos -= 20
+    
+    # Rows with Zebra Striping
     items = [
         ("Estimated Groceries & Food", food, alt_food),
         ("Estimated Utilities (Power/Water/Gas)", utils, alt_utils),
         ("Mandatory TWIA Coastal Surcharge", twia, alt_twia),
         ("Optional HOA / Maintenance", hoa, alt_hoa)
     ]
-    for label, tgt_val, alt_val in items:
-        p.drawString(50, y_pos, label)
-        p.drawRightString(width - 160, y_pos, f"${tgt_val:,.2f}")
-        if not is_optimal:
-            p.drawRightString(width - 50, y_pos, f"${alt_val:,.2f}")
-        y_pos -= 25
+    
+    p.setFont("Helvetica", 11)
+    for i, (label, tgt_val, alt_val) in enumerate(items):
+        if i % 2 == 0:
+            p.setFillColorRGB(0.97, 0.97, 0.97) # Light grey stripe
+            p.rect(40, y_pos - 5, width - 80, 20, fill=1, stroke=0)
         
-    # Total Box
-    y_pos -= 10
-    p.setFillColorRGB(0.95, 0.95, 0.95) 
-    p.rect(40, y_pos - 25, width - 80, 40, fill=1, stroke=0)
-    p.setFillColorRGB(0, 0, 0)
-    p.setFont("Helvetica-Bold", 14)
-    p.drawString(50, y_pos - 10, "Total Estimated Monthly Cost")
-    p.drawRightString(width - 160, y_pos - 10, f"${total_cost:,.2f}")
+        p.setFillColorRGB(0, 0, 0)
+        p.drawString(45, y_pos, label)
+        p.drawRightString(width - 150, y_pos, f"${tgt_val:,.2f}")
+        if not is_optimal:
+            p.drawRightString(width - 40, y_pos, f"${alt_val:,.2f}")
+        y_pos -= 20
+        
+    # Total Row (Dark Bar)
+    y_pos -= 5
+    p.setFillColorRGB(0.1, 0.12, 0.17) 
+    p.rect(40, y_pos - 20, width - 80, 30, fill=1, stroke=0)
+    
+    p.setFillColorRGB(1, 1, 1)
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(45, y_pos - 10, "TOTAL ESTIMATED MONTHLY COST")
+    p.drawRightString(width - 150, y_pos - 10, f"${total_cost:,.2f}")
     if not is_optimal:
-        p.drawRightString(width - 50, y_pos - 10, f"${alt_total:,.2f}")
-        p.setFont("Helvetica-Bold", 10)
-        p.setFillColorRGB(0.1, 0.6, 0.1) # Green text for savings
+        p.drawRightString(width - 40, y_pos - 10, f"${alt_total:,.2f}")
+        
+    y_pos -= 40
+    
+    # Savings Highlight Callout
+    p.setFillColorRGB(0, 0, 0)
+    if not is_optimal:
         savings = total_cost - alt_total
-        p.drawRightString(width - 50, y_pos - 35, f"Est. Savings: ${savings:,.2f}")
-        p.setFillColorRGB(0, 0, 0) # Reset
+        p.setFillColorRGB(0.9, 0.98, 0.9) 
+        p.setStrokeColorRGB(0.2, 0.8, 0.2) 
+        p.rect(width - 260, y_pos - 20, 220, 30, fill=1, stroke=1)
+        
+        p.setFillColorRGB(0.1, 0.5, 0.1) 
+        p.setFont("Helvetica-Bold", 12)
+        p.drawRightString(width - 50, y_pos - 10, f"⭐ Est. Monthly Savings: ${savings:,.2f}")
     else:
         p.setFont("Helvetica-Oblique", 10)
-        p.drawString(50, y_pos - 40, "*Target ZIP operates in an optimal governance zone. No arbitrage required.")
+        p.setFillColorRGB(0.4, 0.4, 0.4)
+        p.drawRightString(width - 40, y_pos - 10, "🌟 Optimal Governance Zone: No arbitrage required.")
+        
+    p.setFillColorRGB(0, 0, 0)
     
-    # --- 4. AI Narrative Summary ---
+    # --- 4. AI Narrative Summary (Blockquote Style) ---
     if ai_summary:
         y_pos -= 60
         p.setFont("Helvetica-Bold", 14)
-        p.drawString(50, y_pos, "AI Executive Summary")
-        p.setFont("Helvetica", 10)
+        p.drawString(40, y_pos, "AI Executive Summary")
         
-        textobject = p.beginText(50, y_pos - 20)
+        y_pos -= 20
+        box_height = 80 
+        p.setFillColorRGB(0.95, 0.96, 0.98) 
+        p.rect(40, y_pos - box_height, width - 80, box_height + 10, fill=1, stroke=0)
+        
+        p.setFillColorRGB(0.2, 0.4, 0.7) 
+        p.rect(40, y_pos - box_height, 4, box_height + 10, fill=1, stroke=0)
+        
+        p.setFillColorRGB(0.1, 0.1, 0.1)
+        textobject = p.beginText(55, y_pos - 5)
         textobject.setFont("Helvetica", 10)
-        textobject.setLeading(14)
+        textobject.setLeading(16) 
         
         words = ai_summary.split()
         line = ""
         for word in words:
-            if len(line + word) > 90:
+            if len(line + word) > 95:
                 textobject.textLine(line)
                 line = word + " "
             else:
@@ -260,10 +307,10 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
         p.drawText(textobject)
 
     # --- 5. Disclaimer Footer ---
-    p.setFont("Helvetica-Oblique", 9)
-    p.setFillColorRGB(0.5, 0.5, 0.5)
-    p.drawString(50, 50, "Note: This estimate relies on predictive machine learning models and spatial proximity math.")
-    p.drawString(50, 35, "Results should be used for informational planning purposes only.")
+    p.setFont("Helvetica-Oblique", 8)
+    p.setFillColorRGB(0.6, 0.6, 0.6)
+    p.drawCentredString(width / 2, 40, "Note: This estimate relies on predictive machine learning models and spatial proximity math.")
+    p.drawCentredString(width / 2, 30, "Results should be used for informational planning purposes only. Generated by Living Expense Engine.")
     
     p.showPage()
     p.save()
