@@ -131,33 +131,38 @@ def calculate_twia_surcharge(twia_flag, multiplier):
 # ==========================================
 # 4.5. EXECUTIVE PDF REPORT GENERATOR & AI
 # ==========================================
-def generate_ai_narrative(city, total, food, utils, twia):
-    """Calls OpenAI to generate a short, insightful summary of the costs."""
+def generate_ai_narrative(city, total, food, utils, twia, is_optimal, alt_zip=None, alt_city=None, alt_total=0.0):
+    """Calls OpenAI to generate a short, insightful summary of the costs, including arbitrage comparisons."""
     try:
-        # Fails gracefully if the user has not set up the Streamlit Secret yet
         if "OPENAI_API_KEY" not in st.secrets:
             return "AI Summary unavailable: OPENAI_API_KEY secret is not configured in Streamlit Cloud."
             
         client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-        prompt = f"""
+        
+        base_prompt = f"""
         Write a concise, 3-sentence executive summary for a living expense report in {city}.
         The total monthly non-mortgage cost is ${total:,.2f}. 
         Groceries are ${food:,.2f}, Utilities are ${utils:,.2f}, and Coastal Insurance is ${twia:,.2f}.
         Keep it professional, analytical, and mention if the coastal insurance is a significant burden. 
-        Do not use bullet points or welcome greetings.
         """
+        if not is_optimal:
+             base_prompt += f"Also explicitly mention that migrating to nearby ZIP {alt_zip} ({alt_city}) would lower total non-mortgage costs to ${alt_total:,.2f}. Do not use bullet points or welcome greetings."
+        else:
+             base_prompt += "Also state that this is an optimal governance zone with no recommended arbitrage migrations. Do not use bullet points or welcome greetings."
+
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=100,
+            messages=[{"role": "user", "content": base_prompt}],
+            max_tokens=150,
             temperature=0.5
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
         return f"AI Summary unavailable at this time. (Error: {e})"
 
-def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food, utils, twia, hoa, ai_summary=""):
-    """Generates an in-memory PDF executive summary with advanced styling."""
+def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food, utils, twia, hoa, 
+                        is_optimal, alt_zip, alt_city, alt_total, alt_food, alt_utils, alt_twia, alt_hoa, ai_summary=""):
+    """Generates an in-memory PDF executive summary displaying target and alternative arbitrage metrics."""
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
@@ -170,40 +175,47 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
     p.setFont("Helvetica-Bold", 20)
     p.drawString(50, height - 45, "Non-Mortgage Living Expense Estimate")
     p.setFont("Helvetica", 12)
-    p.drawString(50, height - 70, f"Location Profile: ZIP {zip_code} | {city}")
+    p.drawString(50, height - 70, f"Target Profile: ZIP {zip_code} | {city}")
     
     # --- 2. Classification & Growth ---
     p.setFillColorRGB(0, 0, 0) 
     p.setFont("Helvetica-Bold", 12)
     p.drawString(50, height - 140, "Regional Classification:")
     p.setFont("Helvetica", 12)
-    p.drawString(200, height - 140, archetype)
+    p.drawString(220, height - 140, archetype)
     
     p.setFont("Helvetica-Bold", 12)
     p.drawString(50, height - 160, "5-Year Pop Growth:")
     p.setFont("Helvetica", 12)
-    p.drawString(200, height - 160, f"{pop_growth:+.1f}%")
+    p.drawString(220, height - 160, f"{pop_growth:+.1f}%")
     
-    # --- 3. Cost Breakdown Section ---
+    # --- 3. Cost Breakdown Grid ---
     p.setLineWidth(1)
     p.setStrokeColorRGB(0.8, 0.8, 0.8) 
     p.line(50, height - 190, width - 50, height - 190)
     
+    # Header Row
     p.setFont("Helvetica-Bold", 14)
-    p.drawString(50, height - 220, "Monthly Cost Breakdown")
+    p.drawString(50, height - 220, "Itemized Cost Breakdown")
+    p.setFont("Helvetica-Bold", 12)
+    p.drawRightString(width - 160, height - 220, "Target")
+    if not is_optimal:
+        p.drawRightString(width - 50, height - 220, "Arbitrage Alt.")
     
     # Cost Items
     p.setFont("Helvetica", 12)
     y_pos = height - 250
     items = [
-        ("Estimated Groceries & Food:", food),
-        ("Estimated Utilities (Power/Water/Gas):", utils),
-        ("Mandatory TWIA Coastal Surcharge:", twia),
-        ("Optional HOA / Maintenance:", hoa)
+        ("Estimated Groceries & Food", food, alt_food),
+        ("Estimated Utilities (Power/Water/Gas)", utils, alt_utils),
+        ("Mandatory TWIA Coastal Surcharge", twia, alt_twia),
+        ("Optional HOA / Maintenance", hoa, alt_hoa)
     ]
-    for label, value in items:
+    for label, tgt_val, alt_val in items:
         p.drawString(50, y_pos, label)
-        p.drawRightString(width - 50, y_pos, f"${value:,.2f}")
+        p.drawRightString(width - 160, y_pos, f"${tgt_val:,.2f}")
+        if not is_optimal:
+            p.drawRightString(width - 50, y_pos, f"${alt_val:,.2f}")
         y_pos -= 25
         
     # Total Box
@@ -212,16 +224,27 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
     p.rect(40, y_pos - 25, width - 80, 40, fill=1, stroke=0)
     p.setFillColorRGB(0, 0, 0)
     p.setFont("Helvetica-Bold", 14)
-    p.drawString(50, y_pos - 10, "Total Estimated Occupancy Cost:")
-    p.drawRightString(width - 50, y_pos - 10, f"${total_cost:,.2f}")
+    p.drawString(50, y_pos - 10, "Total Estimated Monthly Cost")
+    p.drawRightString(width - 160, y_pos - 10, f"${total_cost:,.2f}")
+    if not is_optimal:
+        p.drawRightString(width - 50, y_pos - 10, f"${alt_total:,.2f}")
+        p.setFont("Helvetica-Bold", 10)
+        p.setFillColorRGB(0.1, 0.6, 0.1) # Green text for savings
+        savings = total_cost - alt_total
+        p.drawRightString(width - 50, y_pos - 35, f"Est. Savings: ${savings:,.2f}")
+        p.setFillColorRGB(0, 0, 0) # Reset
+    else:
+        p.setFont("Helvetica-Oblique", 10)
+        p.drawString(50, y_pos - 40, "*Target ZIP operates in an optimal governance zone. No arbitrage required.")
     
     # --- 4. AI Narrative Summary ---
     if ai_summary:
+        y_pos -= 60
         p.setFont("Helvetica-Bold", 14)
-        p.drawString(50, y_pos - 70, "AI Executive Summary")
+        p.drawString(50, y_pos, "AI Executive Summary")
         p.setFont("Helvetica", 10)
         
-        textobject = p.beginText(50, y_pos - 90)
+        textobject = p.beginText(50, y_pos - 20)
         textobject.setFont("Helvetica", 10)
         textobject.setLeading(14)
         
@@ -380,6 +403,33 @@ def main():
     
     alt_total_cost = alt_pred_food + alt_pred_utils + alt_pred_hoa + alt_pred_twia
 
+    # --- PDF EXPORT COMPONENT (AI ENHANCED) - MOVED TO SIDEBAR ---
+    st.sidebar.markdown("---")
+    st.sidebar.header("5. Export Component")
+    if st.sidebar.button("📄 Generate Executive Report PDF"):
+        with st.spinner("Generating AI Narrative & Building PDF..."):
+            
+            narrative = generate_ai_narrative(
+                city_name, total_cost, pred_food, pred_utils, pred_twia, 
+                is_optimal, alt_zip, alt_city, alt_total_cost
+            )
+            
+            pdf_buffer = generate_pdf_report(
+                zip_query, city_name, archetype, pop_growth_pct, 
+                total_cost, pred_food, pred_utils, pred_twia, pred_hoa,
+                is_optimal, alt_zip, alt_city, alt_total_cost, alt_pred_food, alt_pred_utils, alt_pred_twia, alt_pred_hoa,
+                ai_summary=narrative
+            )
+            
+            st.sidebar.success("Report Generated Successfully!")
+            st.sidebar.download_button(
+                label="📥 Download PDF",
+                data=pdf_buffer,
+                file_name=f"AI_Expense_Report_{zip_query}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+
     # --- RENDER DASHBOARD HEADER ---
     if features['twia_mandatory'] == 1:
         st.warning(f"🌊 **Coastal Zone Designation ({city_name}):** Located within TWIA coastal policy eligibility boundary.")
@@ -400,30 +450,6 @@ def main():
     with col5:
         st.metric("5-Yr Pop Growth", f"{pop_growth_pct:+.1f}%")
 
-    st.markdown("---")
-
-    # --- PDF EXPORT COMPONENT (AI ENHANCED) ---
-    st.markdown("### Generate Executive Report")
-    
-    if st.button("Generate AI-Enhanced PDF"):
-        with st.spinner("Generating AI Narrative & Building PDF..."):
-            
-            narrative = generate_ai_narrative(city_name, total_cost, pred_food, pred_utils, pred_twia)
-            
-            pdf_buffer = generate_pdf_report(
-                zip_query, city_name, archetype, pop_growth_pct, 
-                total_cost, pred_food, pred_utils, pred_twia, pred_hoa,
-                ai_summary=narrative
-            )
-            
-            st.success("Report Generated Successfully!")
-            st.download_button(
-                label="📄 Download AI-Enhanced PDF",
-                data=pdf_buffer,
-                file_name=f"AI_Expense_Report_{zip_query}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
     st.markdown("---")
 
     # --- DEEP DIVE TABS ---
