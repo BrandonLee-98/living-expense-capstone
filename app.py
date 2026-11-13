@@ -162,7 +162,7 @@ def generate_ai_narrative(city, total, food, utils, twia, is_optimal, alt_zip=No
 
 def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food, utils, twia, hoa, 
                         is_optimal, alt_zip, alt_city, alt_total, alt_food, alt_utils, alt_twia, alt_hoa, ai_summary=""):
-    """Generates a premium, enterprise-styled PDF executive summary."""
+    """Generates a premium, enterprise-styled PDF executive summary with dynamic layout sizing."""
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
@@ -176,7 +176,7 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
     p.drawString(40, height - 45, "Non-Mortgage Living Expense Estimate")
     
     p.setFont("Helvetica", 12)
-    p.setFillColorRGB(0.7, 0.8, 0.9) # Light blue accent
+    p.setFillColorRGB(0.7, 0.8, 0.9) 
     p.drawString(40, height - 70, f"Target Profile: ZIP {zip_code} | {city}")
     
     # --- 2. Classification & Growth ---
@@ -189,11 +189,11 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
     p.setFont("Helvetica-Bold", 12)
     p.drawString(40, height - 150, "5-Year Pop Growth:")
     p.setFont("Helvetica", 12)
-    # Color code the growth metric
+    
     if pop_growth > 0:
-        p.setFillColorRGB(0.1, 0.6, 0.1) # Green
+        p.setFillColorRGB(0.1, 0.6, 0.1) 
     else:
-        p.setFillColorRGB(0.8, 0.1, 0.1) # Red
+        p.setFillColorRGB(0.8, 0.1, 0.1) 
     p.drawString(200, height - 150, f"{pop_growth:+.1f}%")
     p.setFillColorRGB(0, 0, 0) 
     
@@ -234,8 +234,9 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
     p.setFont("Helvetica", 11)
     for i, (label, tgt_val, alt_val) in enumerate(items):
         if i % 2 == 0:
-            p.setFillColorRGB(0.97, 0.97, 0.97) # Light grey stripe
-            p.rect(40, y_pos - 5, width - 80, 20, fill=1, stroke=0)
+            p.setFillColorRGB(0.97, 0.97, 0.97) 
+            # FIXED: Expanded the height of the stripe to encompass the text properly
+            p.rect(40, y_pos - 7, width - 80, 24, fill=1, stroke=0)
         
         p.setFillColorRGB(0, 0, 0)
         p.drawString(45, y_pos, label)
@@ -256,54 +257,67 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
     if not is_optimal:
         p.drawRightString(width - 40, y_pos - 10, f"${alt_total:,.2f}")
         
-    y_pos -= 40
+    y_pos -= 45 # Shifted down to provide breathing room
     
     # Savings Highlight Callout
     p.setFillColorRGB(0, 0, 0)
     if not is_optimal:
         savings = total_cost - alt_total
+        box_width = 230
+        
         p.setFillColorRGB(0.9, 0.98, 0.9) 
         p.setStrokeColorRGB(0.2, 0.8, 0.2) 
-        p.rect(width - 260, y_pos - 20, 220, 30, fill=1, stroke=1)
+        # FIXED: Adjusted width and x-coordinate for balanced padding
+        p.rect(width - 40 - box_width, y_pos - 22, box_width, 34, fill=1, stroke=1)
         
         p.setFillColorRGB(0.1, 0.5, 0.1) 
         p.setFont("Helvetica-Bold", 12)
-        p.drawRightString(width - 50, y_pos - 10, f"⭐ Est. Monthly Savings: ${savings:,.2f}")
+        # FIXED: Removed the emoji that caused the square block
+        p.drawRightString(width - 55, y_pos - 10, f"Est. Monthly Savings: ${savings:,.2f}")
     else:
         p.setFont("Helvetica-Oblique", 10)
         p.setFillColorRGB(0.4, 0.4, 0.4)
-        p.drawRightString(width - 40, y_pos - 10, "🌟 Optimal Governance Zone: No arbitrage required.")
+        p.drawRightString(width - 40, y_pos - 10, "Optimal Governance Zone: No arbitrage required.")
         
     p.setFillColorRGB(0, 0, 0)
     
-    # --- 4. AI Narrative Summary (Blockquote Style) ---
+    # --- 4. AI Narrative Summary (Dynamic Blockquote) ---
     if ai_summary:
         y_pos -= 60
         p.setFont("Helvetica-Bold", 14)
         p.drawString(40, y_pos, "AI Executive Summary")
         
         y_pos -= 20
-        box_height = 80 
+        
+        # FIXED: Calculate text wrapping *before* drawing the box to set dynamic height
+        words = ai_summary.split()
+        lines = []
+        current_line = ""
+        for word in words:
+            if len(current_line + word) > 95:
+                lines.append(current_line.strip())
+                current_line = word + " "
+            else:
+                current_line += word + " "
+        if current_line:
+            lines.append(current_line.strip())
+            
+        # Dynamically scale box height based on number of lines
+        box_height = (len(lines) * 16) + 16 
+        
         p.setFillColorRGB(0.95, 0.96, 0.98) 
-        p.rect(40, y_pos - box_height, width - 80, box_height + 10, fill=1, stroke=0)
+        p.rect(40, y_pos - box_height, width - 80, box_height, fill=1, stroke=0)
         
         p.setFillColorRGB(0.2, 0.4, 0.7) 
-        p.rect(40, y_pos - box_height, 4, box_height + 10, fill=1, stroke=0)
+        p.rect(40, y_pos - box_height, 4, box_height, fill=1, stroke=0)
         
         p.setFillColorRGB(0.1, 0.1, 0.1)
-        textobject = p.beginText(55, y_pos - 5)
+        textobject = p.beginText(55, y_pos - 18) # Provide top padding
         textobject.setFont("Helvetica", 10)
         textobject.setLeading(16) 
         
-        words = ai_summary.split()
-        line = ""
-        for word in words:
-            if len(line + word) > 95:
-                textobject.textLine(line)
-                line = word + " "
-            else:
-                line += word + " "
-        textobject.textLine(line)
+        for line in lines:
+            textobject.textLine(line)
         p.drawText(textobject)
 
     # --- 5. Disclaimer Footer ---
