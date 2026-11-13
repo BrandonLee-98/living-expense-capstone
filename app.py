@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import math
 import sqlite3
 import io
+import openai
+from openai import OpenAI
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
@@ -56,7 +58,6 @@ def query_single_zip(db_path: str, zip_query: str):
         
     conn = sqlite3.connect(db_path)
     query = "SELECT * FROM zip_data WHERE zip_code = ?"
-    # Using parameters (?,) prevents SQL injection attacks
     df = pd.read_sql(query, conn, params=(zip_query,))
     conn.close()
     
@@ -68,9 +69,9 @@ def query_single_zip(db_path: str, zip_query: str):
 def render_image(filename: str, caption: str, base_dir: str):
     """Searches common directories for the image and renders it, or shows an explicit error."""
     search_paths = [
-        os.path.join(base_dir, filename),                                    # Root dir
-        os.path.join(base_dir, "figures", filename),                 # Subfolder
-        os.path.join(base_dir, "extracted_figures", "figures", filename) # Zip extraction path
+        os.path.join(base_dir, filename),                                    
+        os.path.join(base_dir, "figures", filename),                 
+        os.path.join(base_dir, "extracted_figures", "figures", filename) 
     ]
     
     for path in search_paths:
@@ -78,8 +79,7 @@ def render_image(filename: str, caption: str, base_dir: str):
             st.image(path, caption=caption)
             return
             
-    # If the loop finishes without returning, the image wasn't found anywhere.
-    st.error(f"⚠️ **Image Missing:** Could not find `{filename}`. Please place this image in the same folder as `app.py` or inside a `Phase03_figures` folder.")
+    st.error(f"⚠️ **Image Missing:** Could not find `{filename}`. Please place this image in the same folder as `app.py` or inside a `figures` folder.")
 
 # ==========================================
 # 3. SPATIAL ARBITRAGE MATH ENGINE
@@ -129,43 +129,118 @@ def calculate_twia_surcharge(twia_flag, multiplier):
     return 125.0 * multiplier if twia_flag == 1 else 0.0
 
 # ==========================================
-# 4.5. EXECUTIVE PDF REPORT GENERATOR
+# 4.5. EXECUTIVE PDF REPORT GENERATOR & AI
 # ==========================================
-def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food, utils, twia, hoa):
-    """Generates an in-memory PDF executive summary of the cost breakdown."""
+def generate_ai_narrative(city, total, food, utils, twia):
+    """Calls OpenAI to generate a short, insightful summary of the costs."""
+    try:
+        # Fails gracefully if the user has not set up the Streamlit Secret yet
+        if "OPENAI_API_KEY" not in st.secrets:
+            return "AI Summary unavailable: OPENAI_API_KEY secret is not configured in Streamlit Cloud."
+            
+        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+        prompt = f"""
+        Write a concise, 3-sentence executive summary for a living expense report in {city}.
+        The total monthly non-mortgage cost is ${total:,.2f}. 
+        Groceries are ${food:,.2f}, Utilities are ${utils:,.2f}, and Coastal Insurance is ${twia:,.2f}.
+        Keep it professional, analytical, and mention if the coastal insurance is a significant burden. 
+        Do not use bullet points or welcome greetings.
+        """
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=100,
+            temperature=0.5
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"AI Summary unavailable at this time. (Error: {e})"
+
+def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food, utils, twia, hoa, ai_summary=""):
+    """Generates an in-memory PDF executive summary with advanced styling."""
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
     
-    # Title Header
-    p.setFont("Helvetica-Bold", 18)
-    p.drawString(50, 750, f"Non-Mortgage Living Expense Estimate")
+    # --- 1. Dark Header Block ---
+    p.setFillColorRGB(0.1, 0.12, 0.17) 
+    p.rect(0, height - 100, width, 100, fill=1, stroke=0)
     
-    # Location Details
-    p.setFont("Helvetica-Bold", 14)
-    p.drawString(50, 710, f"Location: ZIP {zip_code} | {city}")
+    p.setFillColorRGB(1, 1, 1) 
+    p.setFont("Helvetica-Bold", 20)
+    p.drawString(50, height - 45, "Non-Mortgage Living Expense Estimate")
     p.setFont("Helvetica", 12)
-    p.drawString(50, 690, f"Classification: {archetype}")
-    p.drawString(50, 670, f"5-Year Population Growth: {pop_growth:+.1f}%")
+    p.drawString(50, height - 70, f"Location Profile: ZIP {zip_code} | {city}")
     
-    # Cost Breakdown
-    p.setFont("Helvetica-Bold", 14)
-    p.drawString(50, 630, "Monthly Cost Breakdown")
+    # --- 2. Classification & Growth ---
+    p.setFillColorRGB(0, 0, 0) 
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(50, height - 140, "Regional Classification:")
     p.setFont("Helvetica", 12)
-    p.drawString(50, 610, f"Estimated Groceries & Food: ${food:,.2f}")
-    p.drawString(50, 590, f"Estimated Utilities (Power/Water/Gas): ${utils:,.2f}")
-    p.drawString(50, 570, f"Mandatory TWIA Coastal Surcharge: ${twia:,.2f}")
-    p.drawString(50, 550, f"Optional HOA / Maintenance: ${hoa:,.2f}")
+    p.drawString(200, height - 140, archetype)
     
-    # Total Cost Line
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(50, height - 160, "5-Year Pop Growth:")
+    p.setFont("Helvetica", 12)
+    p.drawString(200, height - 160, f"{pop_growth:+.1f}%")
+    
+    # --- 3. Cost Breakdown Section ---
     p.setLineWidth(1)
-    p.line(50, 535, 300, 535)
-    p.setFont("Helvetica-Bold", 14)
-    p.drawString(50, 515, f"Total Estimated Occupancy Cost: ${total_cost:,.2f}")
+    p.setStrokeColorRGB(0.8, 0.8, 0.8) 
+    p.line(50, height - 190, width - 50, height - 190)
     
-    # Disclaimer
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(50, height - 220, "Monthly Cost Breakdown")
+    
+    # Cost Items
+    p.setFont("Helvetica", 12)
+    y_pos = height - 250
+    items = [
+        ("Estimated Groceries & Food:", food),
+        ("Estimated Utilities (Power/Water/Gas):", utils),
+        ("Mandatory TWIA Coastal Surcharge:", twia),
+        ("Optional HOA / Maintenance:", hoa)
+    ]
+    for label, value in items:
+        p.drawString(50, y_pos, label)
+        p.drawRightString(width - 50, y_pos, f"${value:,.2f}")
+        y_pos -= 25
+        
+    # Total Box
+    y_pos -= 10
+    p.setFillColorRGB(0.95, 0.95, 0.95) 
+    p.rect(40, y_pos - 25, width - 80, 40, fill=1, stroke=0)
+    p.setFillColorRGB(0, 0, 0)
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(50, y_pos - 10, "Total Estimated Occupancy Cost:")
+    p.drawRightString(width - 50, y_pos - 10, f"${total_cost:,.2f}")
+    
+    # --- 4. AI Narrative Summary ---
+    if ai_summary:
+        p.setFont("Helvetica-Bold", 14)
+        p.drawString(50, y_pos - 70, "AI Executive Summary")
+        p.setFont("Helvetica", 10)
+        
+        textobject = p.beginText(50, y_pos - 90)
+        textobject.setFont("Helvetica", 10)
+        textobject.setLeading(14)
+        
+        words = ai_summary.split()
+        line = ""
+        for word in words:
+            if len(line + word) > 90:
+                textobject.textLine(line)
+                line = word + " "
+            else:
+                line += word + " "
+        textobject.textLine(line)
+        p.drawText(textobject)
+
+    # --- 5. Disclaimer Footer ---
     p.setFont("Helvetica-Oblique", 9)
-    p.drawString(50, 460, "Note: This estimate relies on predictive machine learning models and spatial proximity math.")
-    p.drawString(50, 445, "Results should be used for informational planning purposes only.")
+    p.setFillColorRGB(0.5, 0.5, 0.5)
+    p.drawString(50, 50, "Note: This estimate relies on predictive machine learning models and spatial proximity math.")
+    p.drawString(50, 35, "Results should be used for informational planning purposes only.")
     
     p.showPage()
     p.save()
@@ -185,7 +260,6 @@ def main():
 
     try:
         model = load_model(MODEL_FILENAME)
-        # Load the full table for the Arbitrage Engine & Budget Recommender scans
         df = load_all_db_data(DB_FILENAME) 
     except Exception as e:
         st.error(f"Critical Initialization Error: {e}")
@@ -328,21 +402,28 @@ def main():
 
     st.markdown("---")
 
-    # --- PDF EXPORT COMPONENT ---
-    pdf_buffer = generate_pdf_report(
-        zip_query, city_name, archetype, pop_growth_pct, 
-        total_cost, pred_food, pred_utils, pred_twia, pred_hoa
-    )
+    # --- PDF EXPORT COMPONENT (AI ENHANCED) ---
+    st.markdown("### Generate Executive Report")
     
-    col_pdf1, col_pdf2 = st.columns([1, 4])
-    with col_pdf1:
-        st.download_button(
-            label="📄 Download Executive PDF",
-            data=pdf_buffer,
-            file_name=f"Expense_Report_{zip_query}.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
+    if st.button("Generate AI-Enhanced PDF"):
+        with st.spinner("Generating AI Narrative & Building PDF..."):
+            
+            narrative = generate_ai_narrative(city_name, total_cost, pred_food, pred_utils, pred_twia)
+            
+            pdf_buffer = generate_pdf_report(
+                zip_query, city_name, archetype, pop_growth_pct, 
+                total_cost, pred_food, pred_utils, pred_twia, pred_hoa,
+                ai_summary=narrative
+            )
+            
+            st.success("Report Generated Successfully!")
+            st.download_button(
+                label="📄 Download AI-Enhanced PDF",
+                data=pdf_buffer,
+                file_name=f"AI_Expense_Report_{zip_query}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
     st.markdown("---")
 
     # --- DEEP DIVE TABS ---
