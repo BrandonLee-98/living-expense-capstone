@@ -403,21 +403,23 @@ def main():
     
     alt_total_cost = alt_pred_food + alt_pred_utils + alt_pred_hoa + alt_pred_twia
 
-    # --- PDF EXPORT COMPONENT (AI ENHANCED) - MOVED TO SIDEBAR ---
+  # --- PDF EXPORT COMPONENT (AI ENHANCED) - MOVED TO SIDEBAR ---
     st.sidebar.markdown("---")
     st.sidebar.header("5. Export Component")
     if st.sidebar.button("📄 Generate Executive Report PDF"):
         with st.spinner("Generating AI Narrative & Building PDF..."):
             
+            # FIXED: Changed is_optimal to is_optimal_target
             narrative = generate_ai_narrative(
                 city_name, total_cost, pred_food, pred_utils, pred_twia, 
-                is_optimal, alt_zip, alt_city, alt_total_cost
+                is_optimal_target, alt_zip, alt_city, alt_total_cost
             )
             
+            # FIXED: Changed is_optimal to is_optimal_target
             pdf_buffer = generate_pdf_report(
                 zip_query, city_name, archetype, pop_growth_pct, 
                 total_cost, pred_food, pred_utils, pred_twia, pred_hoa,
-                is_optimal, alt_zip, alt_city, alt_total_cost, alt_pred_food, alt_pred_utils, alt_pred_twia, alt_pred_hoa,
+                is_optimal_target, alt_zip, alt_city, alt_total_cost, alt_pred_food, alt_pred_utils, alt_pred_twia, alt_pred_hoa,
                 ai_summary=narrative
             )
             
