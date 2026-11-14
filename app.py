@@ -565,6 +565,7 @@ def main():
                 f"Alternative: {alt_zip} ({alt_city})": alt_vals
             })
             st.table(comp_df)
+    
     # --- 5-YEAR COST & ARBITRAGE PROJECTION ENGINE ---
         st.divider()
         st.subheader("📈 5-Year Non-Mortgage Expense Projection")
@@ -596,10 +597,10 @@ def main():
 
         # Normalize to annual dollars regardless of sidebar Monthly/Annual toggle
         to_annual = 12.0 / time_multiplier
-        base_food = pred_food * to_annual
-        base_utils = pred_utils * to_annual
-        base_twia = pred_twia * to_annual
-        base_hoa = pred_hoa * to_annual
+        base_food = float(pred_food) * to_annual
+        base_utils = float(pred_utils) * to_annual
+        base_twia = float(pred_twia) * to_annual
+        base_hoa = float(pred_hoa) * to_annual
 
         years = [f"Year {y}" for y in range(1, 6)]
         target_annual_series = []
@@ -610,9 +611,10 @@ def main():
                 + base_twia * ((1 + r_twia) ** y)
                 + base_hoa * ((1 + r_hoa) ** y)
             )
-            target_annual_series.append(yr_cost)
+            target_annual_series.append(round(float(yr_cost), 2))
 
         target_5yr_total = sum(target_annual_series)
+        target_col = f"Target {zip_query} ({city_name})".replace(":", "")
 
         if is_optimal_target:
             p_col1, p_col2, p_col3 = st.columns(3)
@@ -630,17 +632,17 @@ def main():
 
             proj_df = pd.DataFrame({
                 "Year": years,
-                f"Target: {zip_query} ({city_name})": target_annual_series
-            }).set_index("Year")
-            st.line_chart(proj_df)
+                target_col: target_annual_series
+            })
+            st.line_chart(proj_df, x="Year", y=target_col)
         else:
             alt_pop_growth = float(best_alt_data.get('five_year_pop_growth_pct', 0.0))
             r_utils_alt = r_utils + min(max(alt_pop_growth, 0.0) * 0.0002, 0.015)
 
-            alt_base_food = alt_pred_food * to_annual
-            alt_base_utils = alt_pred_utils * to_annual
-            alt_base_twia = alt_pred_twia * to_annual
-            alt_base_hoa = alt_pred_hoa * to_annual
+            alt_base_food = float(alt_pred_food) * to_annual
+            alt_base_utils = float(alt_pred_utils) * to_annual
+            alt_base_twia = float(alt_pred_twia) * to_annual
+            alt_base_hoa = float(alt_pred_hoa) * to_annual
 
             alt_annual_series = []
             for y in range(5):
@@ -650,10 +652,11 @@ def main():
                     + alt_base_twia * ((1 + r_twia) ** y)
                     + alt_base_hoa * ((1 + r_hoa) ** y)
                 )
-                alt_annual_series.append(yr_alt)
+                alt_annual_series.append(round(float(yr_alt), 2))
 
             alt_5yr_total = sum(alt_annual_series)
             cumulative_savings = target_5yr_total - alt_5yr_total
+            alt_col = f"Alternative {alt_zip} ({alt_city})".replace(":", "")
 
             p_col1, p_col2, p_col3 = st.columns(3)
             with p_col1:
@@ -669,10 +672,10 @@ def main():
 
             proj_df = pd.DataFrame({
                 "Year": years,
-                f"Target: {zip_query} ({city_name})": target_annual_series,
-                f"Alternative: {alt_zip} ({alt_city})": alt_annual_series
-            }).set_index("Year")
-            st.line_chart(proj_df)
+                target_col: target_annual_series,
+                alt_col: alt_annual_series
+            })
+            st.line_chart(proj_df, x="Year", y=[target_col, alt_col])
 
             table_df = pd.DataFrame({
                 "Projection Year": years,
