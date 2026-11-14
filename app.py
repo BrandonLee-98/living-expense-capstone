@@ -146,7 +146,7 @@ def calculate_twia_surcharge(twia_flag, multiplier):
 # ==========================================
 # 4.5. EXECUTIVE PDF REPORT GENERATOR & AI
 # ==========================================
-def generate_ai_narrative(city, total, food, utils, twia, is_optimal, alt_zip=None, alt_city=None, alt_total=0.0):
+def generate_ai_narrative(city, total, food, utils, twia, is_optimal, alt_zip=None, alt_city=None, alt_total=0.0, horizon_label="Monthly"):
     """Calls OpenAI to generate a short, insightful summary of the costs, including arbitrage comparisons."""
     try:
         if "OPENAI_API_KEY" not in st.secrets:
@@ -156,7 +156,7 @@ def generate_ai_narrative(city, total, food, utils, twia, is_optimal, alt_zip=No
         
         base_prompt = f"""
         Write a concise, 3-sentence executive summary for a living expense report in {city}.
-        The total monthly non-mortgage cost is ${total:,.2f}. 
+        The total {horizon_label.lower()} non-mortgage cost is ${total:,.2f}. 
         Groceries are ${food:,.2f}, Utilities are ${utils:,.2f}, and Coastal Insurance is ${twia:,.2f}.
         Keep it professional, analytical, and mention if the coastal insurance is a significant burden. 
         """
@@ -176,7 +176,7 @@ def generate_ai_narrative(city, total, food, utils, twia, is_optimal, alt_zip=No
         return f"AI Summary unavailable at this time. (Error: {e})"
 
 def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food, utils, twia, hoa, 
-                        is_optimal, alt_zip, alt_city, alt_total, alt_food, alt_utils, alt_twia, alt_hoa, ai_summary=""):
+                        is_optimal, alt_zip, alt_city, alt_total, alt_food, alt_utils, alt_twia, alt_hoa, ai_summary="", horizon_label="Monthly"):
     """Generates a premium, enterprise-styled PDF executive summary with dynamic layout sizing."""
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=letter)
@@ -192,7 +192,7 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
     
     p.setFont("Helvetica", 12)
     p.setFillColorRGB(0.7, 0.8, 0.9) 
-    p.drawString(40, height - 70, f"Target Profile: ZIP {zip_code} | {city}")
+    p.drawString(40, height - 70, f"Target Profile: ZIP {zip_code} | {city} ({horizon_label} View)")
     
     # --- 2. Classification & Growth ---
     p.setFillColorRGB(0, 0, 0)
@@ -220,11 +220,11 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
     
     y_pos -= 20
     p.setFont("Helvetica-Bold", 14)
-    p.drawString(40, y_pos, "Itemized Cost Breakdown")
+    p.drawString(40, y_pos, f"Itemized {horizon_label} Cost Breakdown")
     
     # Table Headers
     p.setFont("Helvetica-Bold", 11)
-    p.drawRightString(width - 150, y_pos, "Target")
+    p.drawRightString(width - 150, y_pos, f"Target ({zip_code})")
     if not is_optimal:
         p.drawRightString(width - 40, y_pos, "Arbitrage Alt.")
         p.setFont("Helvetica-Oblique", 9)
@@ -266,7 +266,7 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
     
     p.setFillColorRGB(1, 1, 1)
     p.setFont("Helvetica-Bold", 12)
-    p.drawString(45, y_pos - 10, "TOTAL ESTIMATED MONTHLY COST")
+    p.drawString(45, y_pos - 10, f"TOTAL ESTIMATED {horizon_label.upper()} COST")
     p.drawRightString(width - 150, y_pos - 10, f"${total_cost:,.2f}")
     if not is_optimal:
         p.drawRightString(width - 40, y_pos - 10, f"${alt_total:,.2f}")
@@ -277,7 +277,7 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
     p.setFillColorRGB(0, 0, 0)
     if not is_optimal:
         savings = total_cost - alt_total
-        box_width = 230
+        box_width = 240
         
         p.setFillColorRGB(0.9, 0.98, 0.9) 
         p.setStrokeColorRGB(0.2, 0.8, 0.2) 
@@ -285,7 +285,7 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
         
         p.setFillColorRGB(0.1, 0.5, 0.1) 
         p.setFont("Helvetica-Bold", 12)
-        p.drawRightString(width - 55, y_pos - 10, f"Est. Monthly Savings: ${savings:,.2f}")
+        p.drawRightString(width - 55, y_pos - 10, f"Est. {horizon_label} Savings: ${savings:,.2f}")
     else:
         p.setFont("Helvetica-Oblique", 10)
         p.setFillColorRGB(0.4, 0.4, 0.4)
@@ -381,12 +381,14 @@ def main():
     selected_tier_name = st.sidebar.selectbox("USDA Grocery Plan Tier", tier_display_names, index=2)
     view_mode = st.sidebar.radio("Display Horizon", ["Monthly ($/mo)", "Annualized ($/yr)"], horizontal=True)
     time_multiplier = 12 if view_mode == "Annualized ($/yr)" else 1
+    is_monthly = (time_multiplier == 1)
+    horizon_label = "Monthly" if is_monthly else "Annual"
 
     # --- SQL DATABASE LOOKUP PIPELINE ---
     selected_row = query_single_zip(DB_FILENAME, zip_query)
     
     if selected_row.empty:
-        st.error("❌ ZIP Code not found in the regional dataset.")
+        st.error(f"❌ ZIP Code '{zip_query}' not found in the regional tri-county dataset.")
         st.stop()
     data = selected_row.iloc[0]
 
@@ -395,14 +397,21 @@ def main():
     archetype = data.get('cluster_archetype_name', 'Unclassified Region')
     pop_growth_pct = float(data.get('five_year_pop_growth_pct', 0.0))
 
+    # Dynamic profile summary tailored to the user's selected ZIP code
+    gov_desc = "suburban MUD utility tax governance" if int(data.get('water_mud_flag', 0)) == 1 else "standard municipal utility infrastructure"
+    coastal_desc = "within a mandatory TWIA coastal windstorm boundary" if int(data.get('twia_mandatory', 0)) == 1 else "outside coastal TWIA windstorm surcharges"
+    flood_val = float(data.get('pct_area_100yr_flood', 0.0))
+    profile_note = f"ZIP {zip_query} ({county_name} County) operates under {gov_desc}, sits {coastal_desc}, and has {flood_val:.1f}% 100-year floodplain exposure."
+
     st.sidebar.markdown("---")
     st.sidebar.header("4. ZIP Classification Profile")
     st.sidebar.markdown(f"""
     <div style="font-size: 14px; line-height: 1.5;">
-    <b>City:</b> {city_name}<br>
+    <b>ZIP Code:</b> {zip_query}<br>
+    <b>City / County:</b> {city_name} ({county_name})<br>
     <b>Archetype:</b> {archetype}<br><br>
     <b>5-Year Population Growth Rate:</b> {pop_growth_pct:+.1f}%<br>
-    <i>This ZIP code exhibits stable municipal infrastructure with high-density urban core characteristics.</i>
+    <i>{profile_note}</i>
     </div>
     """, unsafe_allow_html=True)
 
@@ -462,7 +471,8 @@ def main():
         'twia_mandatory': int(best_alt_data.get('twia_mandatory', 0)),
         'water_mud_flag': int(best_alt_data.get('water_mud_flag', 0)),
         'houston_cpi_food_scalar': float(best_alt_data.get('houston_cpi_food_scalar', 1.0)),
-        'effective_tax_rate_pct': float(best_alt_data.get('effective_tax_rate_pct', features['effective_tax_rate_pct']))
+        'effective_tax_rate_pct': float(best_alt_data.get('effective_tax_rate_pct', features['effective_tax_rate_pct'])),
+        'five_year_pop_growth_pct': float(best_alt_data.get('five_year_pop_growth_pct', 0.0))
     })
     alt_df = pd.DataFrame([alt_features])[expected_features]
     alt_preds = model.predict(alt_df)[0]
@@ -481,14 +491,14 @@ def main():
         with st.spinner("Generating AI Narrative & Building PDF..."):
             narrative = generate_ai_narrative(
                 city_name, total_cost, pred_food, pred_utils, pred_twia, 
-                is_optimal_target, alt_zip, alt_city, alt_total_cost
+                is_optimal_target, alt_zip, alt_city, alt_total_cost, horizon_label=horizon_label
             )
             
             pdf_buffer = generate_pdf_report(
                 zip_query, city_name, archetype, pop_growth_pct, 
                 total_cost, pred_food, pred_utils, pred_twia, pred_hoa,
                 is_optimal_target, alt_zip, alt_city, alt_total_cost, alt_pred_food, alt_pred_utils, alt_pred_twia, alt_pred_hoa,
-                ai_summary=narrative
+                ai_summary=narrative, horizon_label=horizon_label
             )
             
             st.sidebar.success("Report Generated Successfully!")
@@ -535,7 +545,7 @@ def main():
     ])
 
     with tab1:
-        st.subheader("Target vs. Alternative Component Comparison")
+        st.subheader(f"Target vs. Alternative Component Comparison — ZIP {zip_query} ({city_name})")
         if is_optimal_target:
             st.success(f"🌟 **Optimal Non-Mortgage Governance:** ZIP {zip_query} already operates on optimal municipal utilities without MUD taxes or coastal surcharges. No alternative migration required.")
             comp_rows = ["Groceries & Food", "Utilities (Power/Water/Gas)"]
@@ -585,10 +595,10 @@ def main():
         import altair as alt
 
         st.divider()
-        st.subheader("📈 5-Year Non-Mortgage Expense Projection")
+        st.subheader(f"📈 5-Year Non-Mortgage Expense Projection — ZIP {zip_query} ({city_name})")
         st.caption(
-            "Projects how your estimated non-mortgage living costs could grow over the next 5 years based on "
-            "regional food inflation, utility demand, and coastal windstorm trends."
+            f"Projects how your estimated non-mortgage living costs for ZIP {zip_query} ({city_name}) could grow over the next 5 years "
+            "based on regional food inflation, local utility demand, and coastal windstorm trends."
         )
 
         scenario = st.selectbox(
@@ -612,9 +622,6 @@ def main():
         pop_demand_adj = min(max(pop_growth_pct, 0.0) * 0.0002, 0.015)
         r_utils_target = r_utils + pop_demand_adj
 
-        # Respect sidebar Display Horizon (Monthly vs. Annualized)
-        is_monthly = (time_multiplier == 1)
-        horizon_label = "Monthly" if is_monthly else "Annual"
         unit_suffix = "/mo" if is_monthly else "/yr"
         y_step = 100 if is_monthly else 1000
 
@@ -635,20 +642,24 @@ def main():
             target_series.append(round(float(yr_cost), 2))
 
         target_col = f"Target {zip_query} ({city_name})".replace(":", "")
+        pct_change = ((target_series[-1] / target_series[0]) - 1) * 100 if target_series[0] > 0 else 0.0
+
+        # Always show the selected ZIP code's own Year 1 and Year 5 projected costs first
+        p_col1, p_col2 = st.columns(2)
+        with p_col1:
+            st.metric(
+                f"Target ({zip_query}) Year 1 {horizon_label} Cost",
+                f"${target_series[0]:,.2f}{unit_suffix}"
+            )
+        with p_col2:
+            st.metric(
+                f"Target ({zip_query}) Year 5 Projected {horizon_label} Cost",
+                f"${target_series[-1]:,.2f}{unit_suffix}",
+                delta=f"+${target_series[-1] - target_series[0]:,.2f}{unit_suffix} (+{pct_change:.1f}%)",
+                delta_color="inverse"
+            )
 
         if is_optimal_target:
-            p_col1, p_col2 = st.columns(2)
-            with p_col1:
-                st.metric(f"Year 1 {horizon_label} Cost", f"${target_series[0]:,.2f}{unit_suffix}")
-            with p_col2:
-                pct_change = ((target_series[-1] / target_series[0]) - 1) * 100 if target_series[0] > 0 else 0.0
-                st.metric(
-                    f"Year 5 Projected {horizon_label} Cost",
-                    f"${target_series[-1]:,.2f}{unit_suffix}",
-                    delta=f"+${target_series[-1] - target_series[0]:,.2f}{unit_suffix} (+{pct_change:.1f}%)",
-                    delta_color="inverse"
-                )
-
             proj_df = pd.DataFrame({
                 "Year": years,
                 target_col: target_series
@@ -674,17 +685,23 @@ def main():
                 alt_series.append(round(float(yr_alt), 2))
 
             alt_col = f"Alternative {alt_zip} ({alt_city})".replace(":", "")
+            alt_pct_change = ((alt_series[-1] / alt_series[0]) - 1) * 100 if alt_series[0] > 0 else 0.0
             yr1_gap = target_series[0] - alt_series[0]
             yr5_gap = target_series[-1] - alt_series[-1]
 
-            p_col1, p_col2 = st.columns(2)
-            with p_col1:
-                st.metric(f"Year 1 {horizon_label} Savings (vs. {alt_zip})", f"${yr1_gap:,.2f}{unit_suffix}")
-            with p_col2:
+            a_col1, a_col2 = st.columns(2)
+            with a_col1:
                 st.metric(
-                    f"Year 5 Projected {horizon_label} Savings",
+                    f"Alternative ({alt_zip}) Year 5 Projected {horizon_label} Cost",
+                    f"${alt_series[-1]:,.2f}{unit_suffix}",
+                    delta=f"+${alt_series[-1] - alt_series[0]:,.2f}{unit_suffix} (+{alt_pct_change:.1f}%)",
+                    delta_color="inverse"
+                )
+            with a_col2:
+                st.metric(
+                    f"Year 5 Projected {horizon_label} Savings (vs. {alt_zip})",
                     f"${yr5_gap:,.2f}{unit_suffix}",
-                    delta=f"+${yr5_gap - yr1_gap:,.2f}{unit_suffix} wider gap vs. Yr 1"
+                    delta=f"+${yr5_gap - yr1_gap:,.2f}{unit_suffix} wider gap vs. Yr 1 (${yr1_gap:,.2f}{unit_suffix})"
                 )
 
             proj_df = pd.DataFrame({
@@ -727,14 +744,14 @@ def main():
         if is_optimal_target:
             table_df = pd.DataFrame({
                 "Projection Year": years,
-                f"Target ({zip_query}) {horizon_label}": [f"${v:,.2f}{unit_suffix}" for v in target_series]
+                f"Target ({zip_query} - {city_name}) {horizon_label}": [f"${v:,.2f}{unit_suffix}" for v in target_series]
             })
         else:
             table_df = pd.DataFrame({
                 "Projection Year": years,
-                f"Target ({zip_query}) {horizon_label}": [f"${v:,.2f}{unit_suffix}" for v in target_series],
-                f"Alternative ({alt_zip}) {horizon_label}": [f"${v:,.2f}{unit_suffix}" for v in alt_series],
-                f"{horizon_label} Savings": [f"${t - a:,.2f}{unit_suffix}" for t, a in zip(target_series, alt_series)]
+                f"Target ({zip_query} - {city_name}) {horizon_label}": [f"${v:,.2f}{unit_suffix}" for v in target_series],
+                f"Alternative ({alt_zip} - {alt_city}) {horizon_label}": [f"${v:,.2f}{unit_suffix}" for v in alt_series],
+                f"Projected {horizon_label} Savings": [f"${t - a:,.2f}{unit_suffix}" for t, a in zip(target_series, alt_series)]
             })
         st.dataframe(table_df, use_container_width=True, hide_index=True)
 
@@ -742,8 +759,8 @@ def main():
         with st.expander("ℹ️ How We Calculate These Numbers (Transparency Guide)"):
             st.markdown(f"""
             #### Two-Step Forecast Approach
-            Our machine learning model was trained on current housing and utility data across 279 ZIP codes in Harris, Fort Bend, and Galveston counties—not historical multi-year inflation data. To give you a realistic 5-year outlook without guessing beyond what the model learned, we break the calculation into two parts:
-            * **Year 1 (Today's Baseline):** Calculated directly by our AI model using your home size, household size, and local ZIP code rules.
+            Our machine learning model was trained on current housing and utility data across {len(df)} ZIP codes in Harris, Fort Bend, and Galveston counties—not historical multi-year inflation data. To give you a realistic 5-year outlook without guessing beyond what the model learned, we break the calculation into two parts:
+            * **Year 1 (Today's Baseline):** Calculated directly by our AI model using your home size (`{sqft_input:,} sqft`), household size (`{occupants_input}`), and local ZIP `{zip_query}` rules.
             * **Years 2–5 (Annual Cost Growth):** Applies realistic yearly inflation rates to each non-mortgage expense category based on Greater Houston and coastal Texas benchmarks.
 
             #### Local Population Growth Adjustment (`{zip_query}`)
@@ -775,7 +792,7 @@ def main():
             )
     
     with tab2:
-        st.subheader("Actuarial Flood Hazard & Municipal Water Governance")
+        st.subheader(f"Actuarial Flood Hazard & Municipal Water Governance — ZIP {zip_query} ({city_name})")
         st.markdown("""
         This tab evaluates structural flood exposure and water service governance for the selected ZIP code. 
         It details historical National Flood Insurance Program (NFIP) claim payouts, 100-year floodplain area percentages, 
@@ -810,7 +827,7 @@ def main():
             st.success("✅ **Standard Municipal Jurisdiction:** Serviced directly by municipal infrastructure. No additional MUD property tax levies apply.")
 
     with tab3:
-        st.subheader("Utility Delivery Grid Operators")
+        st.subheader(f"Utility Delivery Grid Operators — ZIP {zip_query} ({city_name})")
         g_col1, g_col2 = st.columns(2)
         with g_col1:
             st.markdown(f"### ⚡ Electricity")
@@ -827,10 +844,14 @@ def main():
         st.subheader("Regional Budget Recommender")
         st.markdown(f"Find alternative ZIP codes within a specific radius of **{zip_query} ({city_name})** that fit your maximum occupancy budget.")
         
+        default_budget = 1500.0 if is_monthly else 18000.0
+        max_cap = 10000.0 if is_monthly else 120000.0
+        step_val = 100.0 if is_monthly else 1000.0
+
         with st.form("budget_recommender_form"):
             r_col1, r_col2 = st.columns(2)
             with r_col1:
-                max_budget = st.number_input("Maximum Monthly Budget ($)", min_value=500.0, max_value=10000.0, value=1500.0, step=100.0)
+                max_budget = st.number_input(f"Maximum {horizon_label} Budget ($)", min_value=500.0, max_value=max_cap, value=default_budget, step=step_val)
             with r_col2:
                 search_radius = st.slider("Search Radius (Miles)", min_value=1, max_value=50, value=10)
                 
@@ -869,22 +890,23 @@ def main():
 
                     nearby_df['Estimated Total'] = food_costs + utils_costs + hoa_costs + twia_costs
                     
-                    affordable_df = nearby_df[nearby_df['Estimated Total'] <= (max_budget * time_multiplier)]
+                    affordable_df = nearby_df[nearby_df['Estimated Total'] <= max_budget]
                     
                     if affordable_df.empty:
-                        st.error(f"No ZIP codes within {search_radius} miles met the budget of ${max_budget:,.2f}.")
+                        st.error(f"No ZIP codes within {search_radius} miles met the {horizon_label.lower()} budget of ${max_budget:,.2f}.")
                     else:
-                        st.success(f"Found {len(affordable_df)} affordable ZIP codes within {search_radius} miles!")
+                        st.success(f"Found {len(affordable_df)} affordable ZIP codes within {search_radius} miles of {zip_query}!")
                         display_cols = ['zip_code', 'city_name', 'cluster_archetype_name', 'dist_to_target', 'Estimated Total']
+                        cost_col_name = f"Total {horizon_label} Cost"
                         res_df = affordable_df[display_cols].sort_values('Estimated Total').rename(columns={
                             'zip_code': 'ZIP',
                             'city_name': 'City',
                             'cluster_archetype_name': 'Archetype',
                             'dist_to_target': 'Distance (Miles)',
-                            'Estimated Total': 'Total Monthly Cost'
+                            'Estimated Total': cost_col_name
                         })
                         
-                        res_df['Total Monthly Cost'] = res_df['Total Monthly Cost'].apply(lambda x: f"${x:,.2f}")
+                        res_df[cost_col_name] = res_df[cost_col_name].apply(lambda x: f"${x:,.2f}")
                         res_df['Distance (Miles)'] = res_df['Distance (Miles)'].apply(lambda x: f"{x:.1f}")
                         st.dataframe(res_df, use_container_width=True, hide_index=True)
 
@@ -1196,15 +1218,15 @@ def main():
                     audit_records.append(("Integration: Arbitrage", "find_nearest_arbitrage_zip()", "Live coastal ZIP", "alt.TWIA==0 & alt.MUD==0", str(e), "N/A", "FAILED"))
 
             # --- TEST 4: END-TO-END SQLITE + XGBOOST LATENCY BENCHMARK (SYSTEM TEST) ---
-            with st.status("4/5 System Performance Test: Live SQLite Query + XGBoost Inference (<150ms)...", expanded=True) as s4:
+            with st.status(f"4/5 System Performance Test: Live SQLite Query (ZIP {zip_query}) + XGBoost Inference (<150ms)...", expanded=True) as s4:
                 t0 = time.perf_counter()
                 try:
-                    bench_df = query_single_zip(DB_FILENAME, "77598")
-                    assert not bench_df.empty, "SQLite query returned empty for valid ZIP 77598"
+                    bench_df = query_single_zip(DB_FILENAME, zip_query)
+                    assert not bench_df.empty, f"SQLite query returned empty for active ZIP {zip_query}"
                     b_row = bench_df.iloc[0]
                     bench_input = pd.DataFrame([{
-                        'sqft': 1800,
-                        'occupants': 3,
+                        'sqft': sqft_input,
+                        'occupants': occupants_input,
                         'pct_area_100yr_flood': float(b_row['pct_area_100yr_flood']),
                         'twia_mandatory': int(b_row['twia_mandatory']),
                         'water_mud_flag': int(b_row['water_mud_flag']),
@@ -1217,15 +1239,15 @@ def main():
                     assert len(raw_preds) == 5, f"Expected 5 target outputs, got {len(raw_preds)}"
                     assert all(val >= 0 for val in raw_preds), f"Negative prediction detected: {raw_preds}"
                     assert ms < 150.0, f"Inference latency {ms:.2f}ms exceeded 150ms threshold"
-                    st.write("**Inputs:** Parameterized SQLite lookup `ZIP 77598` + 8-feature tensor (`1800 sqft`, `3 occupants`) → `model.predict()`")
+                    st.write(f"**Inputs:** Parameterized SQLite lookup `ZIP {zip_query}` + 8-feature tensor (`{sqft_input} sqft`, `{occupants_input} occ`) → `model.predict()`")
                     st.write(f"**Actual Output:** 5 targets `[Food=${raw_preds[0]:.2f}, Elec=${raw_preds[1]:.2f}, Water=${raw_preds[2]:.2f}, Gas=${raw_preds[3]:.2f}, HOA=${raw_preds[4]:.2f}]` in **`{ms:.2f} ms`** (Threshold: `< 150.00 ms`)")
-                    st.caption("**What this proves:** Confirms `@st.cache_data` and `@st.cache_resource` keep live SQLite lookup + 5-target XGBoost prediction under our 150ms target.")
+                    st.caption("**What this proves:** Confirms `@st.cache_data` and `@st.cache_resource` keep live SQLite lookup + 5-target XGBoost prediction for your selected ZIP under our 150ms target.")
                     s4.update(label=f"4/5 End-to-End Inference & Latency (<150ms): PASSED ({ms:.2f} ms)", state="complete")
-                    audit_records.append(("System: E2E Latency", "query_single_zip + model.predict", "ZIP 77598, 1800sqft, 3 occ", "len==5, vals>=0, ms<150", f"5 targets in {ms:.2f} ms", f"{ms:.2f} ms", "PASSED"))
+                    audit_records.append(("System: E2E Latency", "query_single_zip + model.predict", f"ZIP {zip_query}, {sqft_input}sqft, {occupants_input} occ", "len==5, vals>=0, ms<150", f"5 targets in {ms:.2f} ms", f"{ms:.2f} ms", "PASSED"))
                 except AssertionError as e:
                     all_passed = False
                     s4.update(label=f"4/5 End-to-End Inference & Latency: FAILED ({e})", state="error")
-                    audit_records.append(("System: E2E Latency", "query_single_zip + model.predict", "ZIP 77598", "ms < 150.0", str(e), "N/A", "FAILED"))
+                    audit_records.append(("System: E2E Latency", "query_single_zip + model.predict", f"ZIP {zip_query}", "ms < 150.0", str(e), "N/A", "FAILED"))
 
             # --- TEST 5: EDGE-CASE SANITIZATION & ASSET INTEGRITY (BUG FIX VERIFICATION) ---
             with st.status("5/5 Edge-Case & Asset Verification: Malformed Input & SHAP Files...", expanded=True) as s5:
@@ -1263,12 +1285,12 @@ def main():
                 "**How to Read This Log:** Each row records a live Python `assert` test executed when you clicked the button above. "
                 "**Test 1** checks straight-line spherical math using a Houston-to-Dallas reference check (`224.80 mi`). "
                 "**Test 2** enforces the `$125/mo` coastal TWIA rule. **Test 3** scans all 313 SQLite ZIP records to verify coastal-to-inland arbitrage routing. "
-                "**Test 4** benchmarks live SQLite + XGBoost prediction speed against our `<150 ms` requirement. "
+                f"**Test 4** benchmarks live SQLite + XGBoost prediction speed for your active ZIP `{zip_query}` against our `<150 ms` requirement. "
                 "**Test 5** verifies graceful handling of malformed text inputs (`'ABCDE'`) and SHAP chart availability."
             )
 
             with st.expander("🔍 Inspect Executed Python Assertions (Code Transparency)"):
-                st.code("""
+                st.code(f"""
 # 1. Haversine Spatial Math (Houston -> Dallas Control Check)
 assert 220.0 < calc_geo_distance_miles(29.7604, -95.3698, 32.7767, -96.7970) < 230.0
 assert calc_geo_distance_miles(29.7604, -95.3698, 29.7604, -95.3698) == 0.0
@@ -1283,7 +1305,7 @@ best_alt, arb_type = find_nearest_arbitrage_zip(df, coastal_sample)
 assert int(best_alt['twia_mandatory']) == 0 and int(best_alt['water_mud_flag']) == 0
 assert arb_type == "cost_governance"
 
-# 4. End-to-End SQLite + XGBoost Latency (< 150ms)
+# 4. End-TO-End SQLite + XGBoost Latency (< 150ms) for Active ZIP {zip_query}
 raw_preds = model.predict(bench_input)[0]
 assert len(raw_preds) == 5 and all(val >= 0 for val in raw_preds) and latency_ms < 150.0
 
