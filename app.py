@@ -688,7 +688,6 @@ def main():
             alt_pct_change = ((alt_series[-1] / alt_series[0]) - 1) * 100 if alt_series[0] > 0 else 0.0
             yr1_gap = target_series[0] - alt_series[0]
             yr5_gap = target_series[-1] - alt_series[-1]
-            gap_shift = yr5_gap - yr1_gap
 
             # Row 2: Identical Year 1 vs. Year 5 Cost layout for the Alternative ZIP
             a_col1, a_col2 = st.columns(2)
@@ -709,8 +708,7 @@ def main():
             st.success(
                 f"💰 **Estimated {horizon_label} Savings ({zip_query} vs. {alt_zip}):** "
                 f"Year 1: **${yr1_gap:,.2f}{unit_suffix}**  |  "
-                f"Year 5 Projected: **${yr5_gap:,.2f}{unit_suffix}** "
-                f"({gap_shift:+,.2f}{unit_suffix} change over 5 years)"
+                f"Year 5 Projected: **${yr5_gap:,.2f}{unit_suffix}**"
             )
 
             proj_df = pd.DataFrame({
