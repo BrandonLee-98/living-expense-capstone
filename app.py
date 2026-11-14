@@ -644,7 +644,7 @@ def main():
         target_col = f"Target {zip_query} ({city_name})".replace(":", "")
         pct_change = ((target_series[-1] / target_series[0]) - 1) * 100 if target_series[0] > 0 else 0.0
 
-        # Always show the selected ZIP code's own Year 1 and Year 5 projected costs first
+        # Row 1: Target ZIP Year 1 vs. Year 5 Cost
         p_col1, p_col2 = st.columns(2)
         with p_col1:
             st.metric(
@@ -688,21 +688,30 @@ def main():
             alt_pct_change = ((alt_series[-1] / alt_series[0]) - 1) * 100 if alt_series[0] > 0 else 0.0
             yr1_gap = target_series[0] - alt_series[0]
             yr5_gap = target_series[-1] - alt_series[-1]
+            gap_shift = yr5_gap - yr1_gap
 
+            # Row 2: Identical Year 1 vs. Year 5 Cost layout for the Alternative ZIP
             a_col1, a_col2 = st.columns(2)
             with a_col1:
+                st.metric(
+                    f"Alternative ({alt_zip}) Year 1 {horizon_label} Cost",
+                    f"${alt_series[0]:,.2f}{unit_suffix}"
+                )
+            with a_col2:
                 st.metric(
                     f"Alternative ({alt_zip}) Year 5 Projected {horizon_label} Cost",
                     f"${alt_series[-1]:,.2f}{unit_suffix}",
                     delta=f"+${alt_series[-1] - alt_series[0]:,.2f}{unit_suffix} (+{alt_pct_change:.1f}%)",
                     delta_color="inverse"
                 )
-            with a_col2:
-                st.metric(
-                    f"Year 5 Projected {horizon_label} Savings (vs. {alt_zip})",
-                    f"${yr5_gap:,.2f}{unit_suffix}",
-                    delta=f"+${yr5_gap - yr1_gap:,.2f}{unit_suffix} wider gap vs. Yr 1 (${yr1_gap:,.2f}{unit_suffix})"
-                )
+
+            # Monthly (or Annual) Savings displayed cleanly underneath both cost rows
+            st.success(
+                f"💰 **Estimated {horizon_label} Savings ({zip_query} vs. {alt_zip}):** "
+                f"Year 1: **${yr1_gap:,.2f}{unit_suffix}**  |  "
+                f"Year 5 Projected: **${yr5_gap:,.2f}{unit_suffix}** "
+                f"({gap_shift:+,.2f}{unit_suffix} change over 5 years)"
+            )
 
             proj_df = pd.DataFrame({
                 "Year": years,
@@ -1305,7 +1314,7 @@ best_alt, arb_type = find_nearest_arbitrage_zip(df, coastal_sample)
 assert int(best_alt['twia_mandatory']) == 0 and int(best_alt['water_mud_flag']) == 0
 assert arb_type == "cost_governance"
 
-# 4. End-TO-End SQLite + XGBoost Latency (< 150ms) for Active ZIP {zip_query}
+# 4. End-to-End SQLite + XGBoost Latency (< 150ms) for Active ZIP {zip_query}
 raw_preds = model.predict(bench_input)[0]
 assert len(raw_preds) == 5 and all(val >= 0 for val in raw_preds) and latency_ms < 150.0
 
