@@ -595,15 +595,19 @@ def main():
         pop_demand_adj = min(max(pop_growth_pct, 0.0) * 0.0002, 0.015)
         r_utils_target = r_utils + pop_demand_adj
 
-        # Normalize to annual dollars regardless of sidebar Monthly/Annual toggle
-        to_annual = 12.0 / time_multiplier
-        base_food = float(pred_food) * to_annual
-        base_utils = float(pred_utils) * to_annual
-        base_twia = float(pred_twia) * to_annual
-        base_hoa = float(pred_hoa) * to_annual
+        # Respect sidebar Display Horizon (Monthly vs. Annualized)
+        is_monthly = (time_multiplier == 1)
+        horizon_label = "Monthly" if is_monthly else "Annual"
+        unit_suffix = "/mo" if is_monthly else "/yr"
+        cum_factor = 12.0 if is_monthly else 1.0
+
+        base_food = float(pred_food)
+        base_utils = float(pred_utils)
+        base_twia = float(pred_twia)
+        base_hoa = float(pred_hoa)
 
         years = [f"Year {y}" for y in range(1, 6)]
-        target_annual_series = []
+        target_series = []
         for y in range(5):
             yr_cost = (
                 base_food * ((1 + r_food) ** y)
@@ -611,20 +615,20 @@ def main():
                 + base_twia * ((1 + r_twia) ** y)
                 + base_hoa * ((1 + r_hoa) ** y)
             )
-            target_annual_series.append(round(float(yr_cost), 2))
+            target_series.append(round(float(yr_cost), 2))
 
-        target_5yr_total = sum(target_annual_series)
+        target_5yr_total = sum(target_series) * cum_factor
         target_col = f"Target {zip_query} ({city_name})".replace(":", "")
 
         if is_optimal_target:
             p_col1, p_col2, p_col3 = st.columns(3)
             with p_col1:
-                st.metric("Year 1 Annual Cost", f"${target_annual_series[0]:,.2f}")
+                st.metric(f"Year 1 {horizon_label} Cost", f"${target_series[0]:,.2f}{unit_suffix}")
             with p_col2:
                 st.metric(
-                    "Year 5 Projected Annual Cost",
-                    f"${target_annual_series[-1]:,.2f}",
-                    delta=f"+${target_annual_series[-1] - target_annual_series[0]:,.2f} vs Yr 1",
+                    f"Year 5 Projected {horizon_label} Cost",
+                    f"${target_series[-1]:,.2f}{unit_suffix}",
+                    delta=f"+${target_series[-1] - target_series[0]:,.2f}{unit_suffix} vs Yr 1",
                     delta_color="inverse"
                 )
             with p_col3:
@@ -632,19 +636,26 @@ def main():
 
             proj_df = pd.DataFrame({
                 "Year": years,
-                target_col: target_annual_series
+                target_col: target_series
             })
             st.line_chart(proj_df, x="Year", y=target_col)
+
+            table_df = pd.DataFrame({
+                "Projection Year": years,
+                f"Target ({zip_query}) {horizon_label}": [f"${v:,.2f}{unit_suffix}" for v in target_series],
+                "Annualized Equivalent": [f"${(v * cum_factor):,.2f}/yr" for v in target_series]
+            })
+            st.dataframe(table_df, use_container_width=True, hide_index=True)
         else:
             alt_pop_growth = float(best_alt_data.get('five_year_pop_growth_pct', 0.0))
             r_utils_alt = r_utils + min(max(alt_pop_growth, 0.0) * 0.0002, 0.015)
 
-            alt_base_food = float(alt_pred_food) * to_annual
-            alt_base_utils = float(alt_pred_utils) * to_annual
-            alt_base_twia = float(alt_pred_twia) * to_annual
-            alt_base_hoa = float(alt_pred_hoa) * to_annual
+            alt_base_food = float(alt_pred_food)
+            alt_base_utils = float(alt_pred_utils)
+            alt_base_twia = float(alt_pred_twia)
+            alt_base_hoa = float(alt_pred_hoa)
 
-            alt_annual_series = []
+            alt_series = []
             for y in range(5):
                 yr_alt = (
                     alt_base_food * ((1 + r_food) ** y)
@@ -652,38 +663,75 @@ def main():
                     + alt_base_twia * ((1 + r_twia) ** y)
                     + alt_base_hoa * ((1 + r_hoa) ** y)
                 )
-                alt_annual_series.append(round(float(yr_alt), 2))
+                alt_series.append(round(float(yr_alt), 2))
 
-            alt_5yr_total = sum(alt_annual_series)
+            alt_5yr_total = sum(alt_series) * cum_factor
             cumulative_savings = target_5yr_total - alt_5yr_total
             alt_col = f"Alternative {alt_zip} ({alt_city})".replace(":", "")
 
             p_col1, p_col2, p_col3 = st.columns(3)
             with p_col1:
-                st.metric("Target 5-Yr Cumulative Cost", f"${target_5yr_total:,.2f}")
+                st.metric(f"Yr 1 {horizon_label} Gap", f"${target_series[0] - alt_series[0]:,.2f}{unit_suffix}")
             with p_col2:
-                st.metric(f"Alternative ({alt_zip}) 5-Yr Cost", f"${alt_5yr_total:,.2f}")
+                st.metric(f"Yr 5 {horizon_label} Gap", f"${target_series[-1] - alt_series[-1]:,.2f}{unit_suffix}")
             with p_col3:
                 st.metric(
                     "5-Year Cumulative Arbitrage Savings",
                     f"${cumulative_savings:,.2f}",
-                    delta=f"Yr 5 Gap: ${target_annual_series[-1] - alt_annual_series[-1]:,.2f}/yr"
+                    delta="60-Mo Total Savings"
                 )
 
             proj_df = pd.DataFrame({
                 "Year": years,
-                target_col: target_annual_series,
-                alt_col: alt_annual_series
+                target_col: target_series,
+                alt_col: alt_series
             })
             st.line_chart(proj_df, x="Year", y=[target_col, alt_col])
 
             table_df = pd.DataFrame({
                 "Projection Year": years,
-                f"Target ({zip_query}) Annual": [f"${v:,.2f}" for v in target_annual_series],
-                f"Alternative ({alt_zip}) Annual": [f"${v:,.2f}" for v in alt_annual_series],
-                "Annual Arbitrage Spread": [f"${t - a:,.2f}" for t, a in zip(target_annual_series, alt_annual_series)]
+                f"Target ({zip_query}) {horizon_label}": [f"${v:,.2f}{unit_suffix}" for v in target_series],
+                f"Alternative ({alt_zip}) {horizon_label}": [f"${v:,.2f}{unit_suffix}" for v in alt_series],
+                f"{horizon_label} Arbitrage Spread": [f"${t - a:,.2f}{unit_suffix}" for t, a in zip(target_series, alt_series)]
             })
             st.dataframe(table_df, use_container_width=True, hide_index=True)
+
+        # --- TRANSPARENCY & METHODOLOGY DISCLOSURE ---
+        with st.expander("ℹ️ Methodology & Empirical Rate Assumptions (Transparency Guide)"):
+            st.markdown(f"""
+            #### Hybrid Two-Stage Forecasting Architecture
+            Because `xgboost_cost_model.joblib` is trained on a cross-sectional spatial snapshot of 279 Gulf Coast ZIP codes rather than multi-year longitudinal time-series data, tree models cannot extrapolate future years directly without clamping at leaf boundaries. Instead, this module separates **empirical baseline prediction** from **actuarial scenario escalation**:
+            * **Year 1 (`t = 0`):** Exact empirical output from the supervised XGBoost regressor and statutory $125/mo TWIA boundary rules.
+            * **Years 2–5 (`t = 1..4`):** Compound annual escalation (`Cost_t = Cost_0 × (1 + r)^t`) calibrated to regional regulatory and macroeconomic benchmarks.
+
+            #### Active ZIP Utility Demand Adjustment (`{zip_query}`)
+            To reflect localized grid and water/wastewater infrastructure expansion costs in rapidly growing suburbs, base utility escalation (`{r_utils*100:.1f}%`) is adjusted using this ZIP's empirical 5-year population growth rate (`{pop_growth_pct:+.1f}%`):
+            * **Formula:** `+0.02%` per `1.0%` of positive 5-year population growth (capped at `+1.50%`).
+            * **Applied Adjustment for {zip_query}:** `+{pop_demand_adj*100:.2f}%` → **Effective Utility Escalation Rate: `{r_utils_target*100:.2f}%/yr`**
+            """)
+
+            assumptions_df = pd.DataFrame({
+                "Expense Category": [
+                    "Groceries & Food",
+                    "Utilities (Elec / Water / Gas)",
+                    "Coastal Windstorm (TWIA)",
+                    "Subdivision / HOA Dues"
+                ],
+                "Conservative": ["2.5% / yr", "3.0% / yr", "4.5% / yr", "2.5% / yr"],
+                "Baseline (Default)": ["3.2% / yr", "3.8% / yr", "7.5% / yr", "3.5% / yr"],
+                "Stress Test": ["4.5% / yr", "5.5% / yr", "11.0% / yr", "5.0% / yr"],
+                "Empirical Anchor & Regulatory Source": [
+                    "BLS Houston-The Woodlands-Sugar Land CPI (Food at Home) & USDA Food Plans",
+                    "BLS Houston Energy CPI, EIA Texas Residential Tariffs & PUCT TDU Delivery Riders",
+                    "Texas Dept. of Insurance (TDI) Rate Filings & TX Ins. Code Ch. 2210 (10% Statutory Cap)",
+                    "BLS Houston Household Operations CPI & Master-Policy Property Insurance Trends"
+                ]
+            })
+            st.table(assumptions_df)
+            st.caption(
+                "**Model Limitation Note:** Year 1 figures reflect supervised ML inference; Years 2–5 represent deterministic sensitivity trajectories "
+                "designed to compare relative spatial cost divergence rather than guarantee future macroeconomic rates."
+            )
     
     with tab2:
         st.subheader("Actuarial Flood Hazard & Municipal Water Governance")
