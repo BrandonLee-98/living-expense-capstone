@@ -1,4 +1,5 @@
 import os
+import time
 import joblib
 import pandas as pd
 import numpy as np
@@ -515,7 +516,7 @@ def main():
         "🎯 Budget Recommender",
         "📊 ML Explainability & Diagnostics",
         "🗺️ Project Execution Roadmap",
-        "🤖 AI Architecture & Framework",
+        "🧠 AI Architecture & Framework",
         "🧪 Live System Diagnostics"
     ])
 
@@ -566,7 +567,7 @@ def main():
             })
             st.table(comp_df)
     
-    # --- 5-YEAR COST & ARBITRAGE PROJECTION ENGINE ---
+        # --- 5-YEAR COST & ARBITRAGE PROJECTION ENGINE ---
         import altair as alt
 
         st.divider()
@@ -1020,10 +1021,10 @@ def main():
             st.divider()
 
     with tab7:
-        st.header("🤖 AI Architecture & Framework")
+        st.header("🧠 AI Architecture & Framework")
         st.markdown("""
-        The **Living Expense Estimation Engine** combines non-linear Machine Learning, Explainable AI (XAI), and Spatial Proximity Analytics 
-        to deliver precise, audit-defensible non-mortgage living cost predictions across Harris, Fort Bend, and Galveston Counties.
+        The **Living Expense Estimation Engine** combines non-linear Machine Learning, Explainable AI (XAI), Spatial Proximity Analytics, 
+        and Generative AI summarization to deliver precise, audit-defensible non-mortgage living cost predictions across Harris, Fort Bend, and Galveston Counties.
         """)
         st.divider()
 
@@ -1054,7 +1055,7 @@ def main():
             SHAP (SHapley Additive exPlanations)  
             
             **Where It Operates:**  
-            Tab 5 (`ML Explainability & Diagnostics`)
+            `📊 ML Explainability & Diagnostics` Tab
             """)
         with col_xai2:
             st.markdown("""
@@ -1072,7 +1073,7 @@ def main():
             Spatial Proximity Engine (Haversine Distance Math)  
             
             **Where It Operates:**  
-            Tab 1 (`Comparison`) & Tab 4 (`Budget Recommender`)
+            `💰 Comparison` & `🎯 Budget Recommender` Tabs
             """)
         with col_geo2:
             st.markdown("""
@@ -1081,8 +1082,26 @@ def main():
             """)
         st.divider()
 
-        # Section 4: Deterministic Hybrid Rules
-        st.markdown("### 4. Hybrid Deterministic & AI Regulatory Rules")
+        # Section 4: Generative AI Executive Summarization (OpenAI API)
+        st.markdown("### 4. Generative AI Executive Summarization (OpenAI API)")
+        col_llm1, col_llm2 = st.columns([1, 2])
+        with col_llm1:
+            st.info("""
+            **Technology Used:**  
+            OpenAI API (`gpt-4o-mini`) + ReportLab  
+            
+            **Where It Operates:**  
+            Sidebar `5. Export Component` (`generate_ai_narrative()`)
+            """)
+        with col_llm2:
+            st.markdown("""
+            * **How It Works:** When a user generates a downloadable executive PDF report, the application passes the verified XGBoost cost breakdown, TWIA coastal status, and spatial arbitrage savings to OpenAI's `gpt-4o-mini` endpoint (`temperature=0.5`, `max_tokens=150`) to synthesize a tailored 3-sentence financial briefing.
+            * **Hallucination Guardrails & Separation of Concerns:** The LLM performs **zero financial calculations**. All dollar figures are computed deterministically by XGBoost, SQLite, and TWIA rules first, and the LLM is strictly constrained to translating those pre-verified outputs into plain-English executive commentary—with automatic fallback handling if API credentials are unavailable.
+            """)
+        st.divider()
+
+        # Section 5: Deterministic Hybrid Rules
+        st.markdown("### 5. Hybrid Deterministic & Regulatory Rules")
         st.markdown("""
         To maintain absolute financial defensibility, predictive Machine Learning is paired with deterministic regulatory rules:
         * **Coastal Windstorm Surcharges (TWIA):** Calculated deterministically ($125/mo policy surcharge) directly from Texas Department of Insurance (TDI) eligibility boundaries.
@@ -1090,66 +1109,166 @@ def main():
         """)
 
     with tab8:
-        st.header("🧪 Live System Diagnostics & Automated Testing")
+        st.header("🧪 Live System Diagnostics & Automated Verification Suite")
         st.markdown("""
-        This control panel executes real-time unit tests against the core mathematical and spatial routing engines 
-        to guarantee deterministic accuracy, regulatory compliance, and system stability during deployment.
+        Unlike static mockups, this diagnostic suite executes live Python `assert` statements and wall-clock latency benchmarks 
+        directly against our production functions, SQLite database (`living_costs.db`), and serialized XGBoost model (`xgboost_cost_model.joblib`).
         """)
         st.divider()
         
-        if st.button("▶️ Run Automated Test Suite", use_container_width=True):
-            import time
-            
-            # --- Test 1: Haversine Math ---
-            with st.status("Testing Spatial Engine (Haversine Distance Math)...", expanded=True) as status1:
-                time.sleep(0.6)
-                dist = calc_geo_distance_miles(29.7604, -95.3698, 32.7767, -96.7970)
-                if 220 < dist < 230:
-                    st.write(f"✅ Calculation Successful: Distance returned {dist:.1f} miles (Expected ~225).")
-                    st.write("✅ Boundary Check: Identical coordinates return 0.0 miles.")
-                    status1.update(label="Spatial Engine: PASSED", state="complete")
-                else:
-                    st.write(f"❌ Calculation Failed: Distance returned {dist:.1f} miles.")
-                    status1.update(label="Spatial Engine: FAILED", state="error")
-            
-            # --- Test 2: Regulatory Governance ---
-            with st.status("Testing Regulatory Governance (TWIA Surcharge Strictness)...", expanded=True) as status2:
-                time.sleep(0.6)
-                t_month = calculate_twia_surcharge(twia_flag=1, multiplier=1)
-                t_annual = calculate_twia_surcharge(twia_flag=1, multiplier=12)
-                t_none = calculate_twia_surcharge(twia_flag=0, multiplier=1)
-                
-                if t_month == 125.0 and t_annual == 1500.0 and t_none == 0.0:
-                    st.write("✅ Monthly baseline correctly assessed at $125.00.")
-                    st.write("✅ Annualized multiplier correctly assessed at $1,500.00.")
-                    st.write("✅ Non-coastal override correctly assessed at $0.00.")
-                    status2.update(label="Regulatory Governance: PASSED", state="complete")
-                else:
-                    st.write("❌ Deterministic ruleset violation detected.")
-                    status2.update(label="Regulatory Governance: FAILED", state="error")
-            
-            # --- Test 3: Spatial Arbitrage Logic ---
-            with st.status("Testing Arbitrage Routing (High-Hazard Evasion)...", expanded=True) as status3:
-                time.sleep(0.6)
-                mock_db = pd.DataFrame({
-                    'zip_code': ['77591', '77598'],
-                    'latitude': [29.3838, 29.5312],
-                    'longitude': [-94.9027, -95.1444],
-                    'twia_mandatory': [1, 0],
-                    'water_mud_flag': [0, 0],
-                    'pct_area_100yr_flood': [42.0, 1.0]
-                })
-                best_alt, arb_type = find_nearest_arbitrage_zip(mock_db, mock_db.iloc[0])
-                
-                if best_alt['zip_code'] == '77598' and arb_type == "cost_governance":
-                    st.write("✅ Scenario: Target ZIP 77591 contains mandatory coastal insurance.")
-                    st.write("✅ Result: Engine successfully routed recommendation to ZIP 77598 to evade surcharge.")
-                    status3.update(label="Arbitrage Routing: PASSED", state="complete")
-                else:
-                    st.write("❌ Routing failure. Engine did not recommend optimal tax zone.")
-                    status3.update(label="Arbitrage Routing: FAILED", state="error")
-                    
-            st.success("🌟 ALL SYSTEMS OPERATIONAL: Unit Testing Complete.")
+        if st.button("▶️ Execute Live Unit, Integration & Edge-Case Suite", use_container_width=True):
+            audit_records = []
+            all_passed = True
+
+            # --- TEST 1: HAVERSINE SPATIAL MATH (UNIT TEST) ---
+            with st.status("1/5 Unit Test: Haversine Great-Circle Spatial Math...", expanded=True) as s1:
+                t0 = time.perf_counter()
+                try:
+                    dist_hou_dal = calc_geo_distance_miles(29.7604, -95.3698, 32.7767, -96.7970)
+                    dist_identity = calc_geo_distance_miles(29.7604, -95.3698, 29.7604, -95.3698)
+                    assert 220.0 < dist_hou_dal < 230.0, f"Expected ~224.8 mi, got {dist_hou_dal}"
+                    assert dist_identity == 0.0, f"Expected 0.0 mi, got {dist_identity}"
+                    ms = (time.perf_counter() - t0) * 1000
+                    st.write(f"**Inputs:** Houston `(29.7604, -95.3698)` → Dallas `(32.7767, -96.7970)` & Identity check")
+                    st.write(f"**Actual Output:** `{dist_hou_dal:.4f} miles` | Identity: `{dist_identity:.1f} miles` (`{ms:.2f} ms`)")
+                    s1.update(label=f"1/5 Spatial Math Unit Test: PASSED ({ms:.2f} ms)", state="complete")
+                    audit_records.append(("Unit: Spatial Math", "calc_geo_distance_miles()", "Houston → Dallas coords", "220 < dist < 230 & id == 0", f"{dist_hou_dal:.2f} mi / {dist_identity:.1f} mi", f"{ms:.2f} ms", "PASSED"))
+                except AssertionError as e:
+                    all_passed = False
+                    s1.update(label=f"1/5 Spatial Math Unit Test: FAILED ({e})", state="error")
+                    audit_records.append(("Unit: Spatial Math", "calc_geo_distance_miles()", "Houston → Dallas coords", "220 < dist < 230", str(e), "N/A", "FAILED"))
+
+            # --- TEST 2: DETERMINISTIC TWIA REGULATORY GOVERNANCE (UNIT TEST) ---
+            with st.status("2/5 Unit Test: Deterministic TWIA Surcharge Rules...", expanded=True) as s2:
+                t0 = time.perf_counter()
+                try:
+                    t_month = calculate_twia_surcharge(twia_flag=1, multiplier=1)
+                    t_annual = calculate_twia_surcharge(twia_flag=1, multiplier=12)
+                    t_inland = calculate_twia_surcharge(twia_flag=0, multiplier=1)
+                    assert t_month == 125.0, f"Expected 125.0, got {t_month}"
+                    assert t_annual == 1500.0, f"Expected 1500.0, got {t_annual}"
+                    assert t_inland == 0.0, f"Expected 0.0, got {t_inland}"
+                    ms = (time.perf_counter() - t0) * 1000
+                    st.write("**Inputs:** `twia_flag=1 (mult=1)`, `twia_flag=1 (mult=12)`, `twia_flag=0 (mult=1)`")
+                    st.write(f"**Actual Output:** `${t_month:.2f}/mo` | `${t_annual:,.2f}/yr` | `${t_inland:.2f}` inland (`{ms:.2f} ms`)")
+                    s2.update(label=f"2/5 TWIA Regulatory Unit Test: PASSED ({ms:.2f} ms)", state="complete")
+                    audit_records.append(("Unit: TWIA Rules", "calculate_twia_surcharge()", "flags=(1, 1, 0), mult=(1, 12, 1)", "== (125.0, 1500.0, 0.0)", f"${t_month:.0f} / ${t_annual:.0f} / ${t_inland:.0f}", f"{ms:.2f} ms", "PASSED"))
+                except AssertionError as e:
+                    all_passed = False
+                    s2.update(label=f"2/5 TWIA Regulatory Unit Test: FAILED ({e})", state="error")
+                    audit_records.append(("Unit: TWIA Rules", "calculate_twia_surcharge()", "flags=(1, 1, 0)", "== (125.0, 1500.0, 0.0)", str(e), "N/A", "FAILED"))
+
+            # --- TEST 3: LIVE SQLITE ARBITRAGE ROUTING (INTEGRATION TEST) ---
+            with st.status("3/5 Integration Test: Live SQLite Arbitrage Routing...", expanded=True) as s3:
+                t0 = time.perf_counter()
+                try:
+                    coastal_sample = df[df['twia_mandatory'] == 1].iloc[0]
+                    src_zip = coastal_sample['zip_code']
+                    best_alt, arb_type = find_nearest_arbitrage_zip(df, coastal_sample)
+                    assert int(best_alt['twia_mandatory']) == 0, "Alternative ZIP still requires TWIA"
+                    assert int(best_alt['water_mud_flag']) == 0, "Alternative ZIP still carries MUD tax"
+                    assert arb_type == "cost_governance", f"Unexpected routing reason: {arb_type}"
+                    ms = (time.perf_counter() - t0) * 1000
+                    st.write(f"**Inputs:** Live coastal DB record `ZIP {src_zip}` (`twia_mandatory=1`) scanned against all `{len(df)}` SQLite ZIP records")
+                    st.write(f"**Actual Output:** Routed to `ZIP {best_alt['zip_code']} ({best_alt.get('city_name', 'N/A')})` | Reason: `{arb_type}` (`{ms:.2f} ms`)")
+                    s3.update(label=f"3/5 Live Arbitrage Integration Test: PASSED ({ms:.2f} ms)", state="complete")
+                    audit_records.append(("Integration: Arbitrage", "find_nearest_arbitrage_zip()", f"Live DB ZIP {src_zip} (TWIA=1)", "alt.TWIA==0 & alt.MUD==0", f"ZIP {best_alt['zip_code']} ({arb_type})", f"{ms:.2f} ms", "PASSED"))
+                except AssertionError as e:
+                    all_passed = False
+                    s3.update(label=f"3/5 Live Arbitrage Integration Test: FAILED ({e})", state="error")
+                    audit_records.append(("Integration: Arbitrage", "find_nearest_arbitrage_zip()", "Live coastal ZIP", "alt.TWIA==0 & alt.MUD==0", str(e), "N/A", "FAILED"))
+
+            # --- TEST 4: END-TO-END SQLITE + XGBOOST LATENCY BENCHMARK (SYSTEM TEST) ---
+            with st.status("4/5 System Performance Test: Live SQLite Query + XGBoost Inference (<150ms)...", expanded=True) as s4:
+                t0 = time.perf_counter()
+                try:
+                    bench_df = query_single_zip(DB_FILENAME, "77598")
+                    assert not bench_df.empty, "SQLite query returned empty for valid ZIP 77598"
+                    b_row = bench_df.iloc[0]
+                    bench_input = pd.DataFrame([{
+                        'sqft': 1800,
+                        'occupants': 3,
+                        'pct_area_100yr_flood': float(b_row['pct_area_100yr_flood']),
+                        'twia_mandatory': int(b_row['twia_mandatory']),
+                        'water_mud_flag': int(b_row['water_mud_flag']),
+                        'houston_cpi_food_scalar': float(b_row['houston_cpi_food_scalar']),
+                        'effective_tax_rate_pct': float(b_row['effective_tax_rate_pct']),
+                        'five_year_pop_growth_pct': float(b_row['five_year_pop_growth_pct'])
+                    }])[expected_features]
+                    raw_preds = model.predict(bench_input)[0]
+                    ms = (time.perf_counter() - t0) * 1000
+                    assert len(raw_preds) == 5, f"Expected 5 target outputs, got {len(raw_preds)}"
+                    assert all(val >= 0 for val in raw_preds), f"Negative prediction detected: {raw_preds}"
+                    assert ms < 150.0, f"Inference latency {ms:.2f}ms exceeded 150ms threshold"
+                    st.write("**Inputs:** Parameterized SQLite lookup `ZIP 77598` + 8-feature tensor (`1800 sqft`, `3 occupants`) → `model.predict()`")
+                    st.write(f"**Actual Output:** 5 targets `[Food=${raw_preds[0]:.2f}, Elec=${raw_preds[1]:.2f}, Water=${raw_preds[2]:.2f}, Gas=${raw_preds[3]:.2f}, HOA=${raw_preds[4]:.2f}]` in **`{ms:.2f} ms`** (Threshold: `< 150.00 ms`)")
+                    s4.update(label=f"4/5 End-to-End Inference & Latency (<150ms): PASSED ({ms:.2f} ms)", state="complete")
+                    audit_records.append(("System: E2E Latency", "query_single_zip + model.predict", "ZIP 77598, 1800sqft, 3 occ", "len==5, vals>=0, ms<150", f"5 targets in {ms:.2f} ms", f"{ms:.2f} ms", "PASSED"))
+                except AssertionError as e:
+                    all_passed = False
+                    s4.update(label=f"4/5 End-to-End Inference & Latency: FAILED ({e})", state="error")
+                    audit_records.append(("System: E2E Latency", "query_single_zip + model.predict", "ZIP 77598", "ms < 150.0", str(e), "N/A", "FAILED"))
+
+            # --- TEST 5: EDGE-CASE SANITIZATION & ASSET INTEGRITY (BUG FIX VERIFICATION) ---
+            with st.status("5/5 Edge-Case & Asset Verification: Malformed Input & SHAP Files...", expanded=True) as s5:
+                t0 = time.perf_counter()
+                try:
+                    bad_zip_df = query_single_zip(DB_FILENAME, "ABCDE")
+                    assert bad_zip_df.empty, "Non-numeric ZIP 'ABCDE' should return empty DataFrame cleanly"
+                    shap_path_found = any(
+                        os.path.exists(p) for p in [
+                            os.path.join(BASE_DIR, "shap_importance_all_targets.png"),
+                            os.path.join(BASE_DIR, "figures", "shap_importance_all_targets.png"),
+                            os.path.join(BASE_DIR, "extracted_figures", "figures", "shap_importance_all_targets.png")
+                        ]
+                    )
+                    assert shap_path_found, "Primary SHAP diagnostic asset missing from all fallback paths"
+                    ms = (time.perf_counter() - t0) * 1000
+                    st.write("**Inputs:** Malformed ZIP `'ABCDE'` → `query_single_zip()` & Multi-directory scan for `shap_importance_all_targets.png`")
+                    st.write(f"**Actual Output:** Empty DataFrame returned safely (`rows=0`, zero SQL exceptions) | SHAP asset verified (`{ms:.2f} ms`)")
+                    s5.update(label=f"5/5 Edge-Case & Asset Integrity: PASSED ({ms:.2f} ms)", state="complete")
+                    audit_records.append(("Edge-Case: Sanitization", "query_single_zip('ABCDE')", "Non-numeric string 'ABCDE'", "df.empty & SHAP exists", "0 rows (safe), SHAP found", f"{ms:.2f} ms", "PASSED"))
+                except AssertionError as e:
+                    all_passed = False
+                    s5.update(label=f"5/5 Edge-Case & Asset Integrity: FAILED ({e})", state="error")
+                    audit_records.append(("Edge-Case: Sanitization", "query_single_zip('ABCDE')", "Non-numeric string 'ABCDE'", "df.empty & SHAP exists", str(e), "N/A", "FAILED"))
+
+            st.divider()
+            st.subheader("📋 Live Diagnostic Audit Log")
+            audit_df = pd.DataFrame(
+                audit_records,
+                columns=["Test Layer", "Target Function", "Input Payload", "Assertion Rule", "Actual Output", "Latency", "Status"]
+            )
+            st.dataframe(audit_df, use_container_width=True, hide_index=True)
+
+            with st.expander("🔍 Inspect Executed Python Assertions (Code Transparency)"):
+                st.code("""
+# 1. Haversine Spatial Math
+assert 220.0 < calc_geo_distance_miles(29.7604, -95.3698, 32.7767, -96.7970) < 230.0
+assert calc_geo_distance_miles(29.7604, -95.3698, 29.7604, -95.3698) == 0.0
+
+# 2. Deterministic TWIA Governance
+assert calculate_twia_surcharge(twia_flag=1, multiplier=1) == 125.0
+assert calculate_twia_surcharge(twia_flag=1, multiplier=12) == 1500.0
+assert calculate_twia_surcharge(twia_flag=0, multiplier=1) == 0.0
+
+# 3. Live SQLite Spatial Arbitrage Routing
+best_alt, arb_type = find_nearest_arbitrage_zip(df, coastal_sample)
+assert int(best_alt['twia_mandatory']) == 0 and int(best_alt['water_mud_flag']) == 0
+assert arb_type == "cost_governance"
+
+# 4. End-to-End SQLite + XGBoost Latency (< 150ms)
+raw_preds = model.predict(bench_input)[0]
+assert len(raw_preds) == 5 and all(val >= 0 for val in raw_preds) and latency_ms < 150.0
+
+# 5. Edge-Case Input Sanitization & SHAP Asset Fallback
+assert query_single_zip(DB_FILENAME, "ABCDE").empty
+                """, language="python")
+
+            if all_passed:
+                st.success("🌟 ALL 5 LIVE UNIT, INTEGRATION & PERFORMANCE ASSERTIONS PASSED.")
+            else:
+                st.error("⚠️ ONE OR MORE SYSTEM ASSERTIONS FAILED. Review the audit log above.")
             
 if __name__ == "__main__":
     main()
