@@ -914,7 +914,7 @@ def main():
                         })
                         
                         res_df[cost_col_name] = res_df[cost_col_name].apply(lambda x: f"${x:,.2f}")
-                        res_df['Distance (Miles)'] = res_df['Distance (Miles)'].apply(lambda x: f"{x:.1f}")
+                        res_df['Straight-Line Distance (mi)'] = res_df['Straight-Line Distance (mi)'].apply(lambda x: f"{x:.1f}")
                         st.dataframe(res_df, use_container_width=True, hide_index=True)
 
     with tab4:
