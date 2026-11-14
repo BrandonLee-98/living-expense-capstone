@@ -751,7 +751,7 @@ def main():
                     "U.S. Bureau of Labor Statistics (BLS) Houston grocery price trends & USDA food plans (~2.5% historical average; 3.2% accounts for recent supply-chain price swings).",
                     "BLS Houston energy inflation data, Texas residential electricity rates (EIA), and local grid upgrade fees (CenterPoint / TNMP).",
                     "Texas Dept. of Insurance (TDI) filings for coastal catastrophe zones (Galveston & eastern Harris County). Texas law caps standard TWIA rate hikes at 10% per year (15% after major storms), so 7.5% reflects a middle-ground increase.",
-                    "BLS Houston household operations trends covering common-area landscaping, community pools/parks, street lighting, and neighborhood management fees (excludes mortgage-escrowed homeowner insurance)."
+                    "BLS Houston household operations trends covering common-area landscaping, community pools/parks, street lighting, and neighborhood management fees."
                 ]
             })
             st.table(assumptions_df)
