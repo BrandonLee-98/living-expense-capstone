@@ -567,15 +567,17 @@ def main():
             st.table(comp_df)
     
     # --- 5-YEAR COST & ARBITRAGE PROJECTION ENGINE ---
+        import altair as alt
+
         st.divider()
         st.subheader("📈 5-Year Non-Mortgage Expense Projection")
         st.caption(
-            "Combines Year 1 XGBoost baseline inference with category-specific compound escalation rates "
-            "(CPI food inflation, utility demand growth, and coastal insurance risk escalation)."
+            "Projects how your estimated living costs could grow over the next 5 years based on "
+            "regional food inflation, utility demand, and coastal insurance trends."
         )
 
         scenario = st.selectbox(
-            "Select Macro Escalation Scenario",
+            "Select Cost Growth Scenario",
             [
                 "Baseline Gulf Coast Forecast (3.2% Food | 3.8% Utils | 7.5% Coastal Ins.)",
                 "Conservative Low-Inflation (2.5% Food | 3.0% Utils | 4.5% Coastal Ins.)",
@@ -599,7 +601,7 @@ def main():
         is_monthly = (time_multiplier == 1)
         horizon_label = "Monthly" if is_monthly else "Annual"
         unit_suffix = "/mo" if is_monthly else "/yr"
-        cum_factor = 12.0 if is_monthly else 1.0
+        y_step = 100 if is_monthly else 1000
 
         base_food = float(pred_food)
         base_utils = float(pred_utils)
@@ -617,35 +619,26 @@ def main():
             )
             target_series.append(round(float(yr_cost), 2))
 
-        target_5yr_total = sum(target_series) * cum_factor
         target_col = f"Target {zip_query} ({city_name})".replace(":", "")
 
         if is_optimal_target:
-            p_col1, p_col2, p_col3 = st.columns(3)
+            p_col1, p_col2 = st.columns(2)
             with p_col1:
                 st.metric(f"Year 1 {horizon_label} Cost", f"${target_series[0]:,.2f}{unit_suffix}")
             with p_col2:
+                pct_change = ((target_series[-1] / target_series[0]) - 1) * 100 if target_series[0] > 0 else 0.0
                 st.metric(
                     f"Year 5 Projected {horizon_label} Cost",
                     f"${target_series[-1]:,.2f}{unit_suffix}",
-                    delta=f"+${target_series[-1] - target_series[0]:,.2f}{unit_suffix} vs Yr 1",
+                    delta=f"+${target_series[-1] - target_series[0]:,.2f}{unit_suffix} (+{pct_change:.1f}%)",
                     delta_color="inverse"
                 )
-            with p_col3:
-                st.metric("5-Year Cumulative Total", f"${target_5yr_total:,.2f}")
 
             proj_df = pd.DataFrame({
                 "Year": years,
                 target_col: target_series
             })
-            st.line_chart(proj_df, x="Year", y=target_col)
-
-            table_df = pd.DataFrame({
-                "Projection Year": years,
-                f"Target ({zip_query}) {horizon_label}": [f"${v:,.2f}{unit_suffix}" for v in target_series],
-                "Annualized Equivalent": [f"${(v * cum_factor):,.2f}/yr" for v in target_series]
-            })
-            st.dataframe(table_df, use_container_width=True, hide_index=True)
+            all_vals = target_series
         else:
             alt_pop_growth = float(best_alt_data.get('five_year_pop_growth_pct', 0.0))
             r_utils_alt = r_utils + min(max(alt_pop_growth, 0.0) * 0.0002, 0.015)
@@ -665,20 +658,18 @@ def main():
                 )
                 alt_series.append(round(float(yr_alt), 2))
 
-            alt_5yr_total = sum(alt_series) * cum_factor
-            cumulative_savings = target_5yr_total - alt_5yr_total
             alt_col = f"Alternative {alt_zip} ({alt_city})".replace(":", "")
+            yr1_gap = target_series[0] - alt_series[0]
+            yr5_gap = target_series[-1] - alt_series[-1]
 
-            p_col1, p_col2, p_col3 = st.columns(3)
+            p_col1, p_col2 = st.columns(2)
             with p_col1:
-                st.metric(f"Yr 1 {horizon_label} Gap", f"${target_series[0] - alt_series[0]:,.2f}{unit_suffix}")
+                st.metric(f"Year 1 {horizon_label} Savings (vs. {alt_zip})", f"${yr1_gap:,.2f}{unit_suffix}")
             with p_col2:
-                st.metric(f"Yr 5 {horizon_label} Gap", f"${target_series[-1] - alt_series[-1]:,.2f}{unit_suffix}")
-            with p_col3:
                 st.metric(
-                    "5-Year Cumulative Arbitrage Savings",
-                    f"${cumulative_savings:,.2f}",
-                    delta="60-Mo Total Savings"
+                    f"Year 5 Projected {horizon_label} Savings",
+                    f"${yr5_gap:,.2f}{unit_suffix}",
+                    delta=f"+${yr5_gap - yr1_gap:,.2f}{unit_suffix} wider gap vs. Yr 1"
                 )
 
             proj_df = pd.DataFrame({
@@ -686,15 +677,87 @@ def main():
                 target_col: target_series,
                 alt_col: alt_series
             })
-            st.line_chart(proj_df, x="Year", y=[target_col, alt_col])
+            all_vals = target_series + alt_series
 
+        # Build zoomed Altair line chart with exact $100 (monthly) or $1,000 (annual) y-axis increments
+        y_min = math.floor(min(all_vals) / y_step) * y_step
+        y_max = math.ceil(max(all_vals) / y_step) * y_step
+        if y_max <= y_min:
+            y_max = y_min + y_step
+        tick_values = list(range(int(y_min), int(y_max) + y_step, y_step))
+
+        proj_long = proj_df.melt(id_vars=["Year"], var_name="Location", value_name="Cost")
+        proj_chart = (
+            alt.Chart(proj_long)
+            .mark_line(point=alt.OverlayMarkDef(size=75), strokeWidth=3)
+            .encode(
+                x=alt.X("Year:N", title="Projection Timeline", axis=alt.Axis(labelAngle=0)),
+                y=alt.Y(
+                    "Cost:Q",
+                    title=f"Estimated {horizon_label} Cost ($)",
+                    scale=alt.Scale(domain=[y_min, y_max], zero=False),
+                    axis=alt.Axis(values=tick_values, format="$,.0f")
+                ),
+                color=alt.Color("Location:N", legend=alt.Legend(orient="bottom", title=None)),
+                tooltip=[
+                    alt.Tooltip("Year:N", title="Timeline"),
+                    alt.Tooltip("Location:N", title="Area"),
+                    alt.Tooltip("Cost:Q", title=f"{horizon_label} Cost", format="$,.2f")
+                ]
+            )
+            .properties(height=340)
+        )
+        st.altair_chart(proj_chart, use_container_width=True)
+
+        if is_optimal_target:
+            table_df = pd.DataFrame({
+                "Projection Year": years,
+                f"Target ({zip_query}) {horizon_label}": [f"${v:,.2f}{unit_suffix}" for v in target_series]
+            })
+        else:
             table_df = pd.DataFrame({
                 "Projection Year": years,
                 f"Target ({zip_query}) {horizon_label}": [f"${v:,.2f}{unit_suffix}" for v in target_series],
                 f"Alternative ({alt_zip}) {horizon_label}": [f"${v:,.2f}{unit_suffix}" for v in alt_series],
-                f"{horizon_label} Arbitrage Spread": [f"${t - a:,.2f}{unit_suffix}" for t, a in zip(target_series, alt_series)]
+                f"{horizon_label} Savings": [f"${t - a:,.2f}{unit_suffix}" for t, a in zip(target_series, alt_series)]
             })
-            st.dataframe(table_df, use_container_width=True, hide_index=True)
+        st.dataframe(table_df, use_container_width=True, hide_index=True)
+
+        # --- TRANSPARENCY & METHODOLOGY DISCLOSURE (PLAIN ENGLISH) ---
+        with st.expander("ℹ️ How We Calculate These Numbers (Transparency Guide)"):
+            st.markdown(f"""
+            #### Two-Step Forecast Approach
+            Our machine learning model was trained on current housing and utility data across 279 local ZIP codes—not historical multi-year inflation data. To give you a realistic 5-year outlook without guessing beyond what the model learned, we break the calculation into two parts:
+            * **Year 1 (Today's Baseline):** Calculated directly by our AI model using your home size, household size, and local ZIP code rules.
+            * **Years 2–5 (Annual Cost Growth):** Applies realistic yearly inflation rates to each expense category based on local Gulf Coast price and insurance data.
+
+            #### Local Population Growth Adjustment (`{zip_query}`)
+            Fast-growing neighborhoods have to build new water lines, substations, and power grid capacity, which pushes utility bills up slightly faster over time.
+            * **How it works:** We add a small **+0.02%** utility adjustment for every **1%** of 5-year population growth in your ZIP code (capped at **+1.50%** max).
+            * **Your ZIP (`{zip_query}`):** Population growth is `{pop_growth_pct:+.1f}%`, which adds **`+{pop_demand_adj*100:.2f}%`** to the base utility rate (`{r_utils*100:.1f}%`), giving an adjusted utility growth rate of **`{r_utils_target*100:.2f}% per year`**.
+            """)
+
+            assumptions_df = pd.DataFrame({
+                "Expense Category": [
+                    "Groceries & Food",
+                    "Utilities (Power, Water, Gas)",
+                    "Coastal Windstorm Insurance (TWIA)",
+                    "HOA / Subdivision Dues"
+                ],
+                "Conservative": ["2.5% / yr", "3.0% / yr", "4.5% / yr", "2.5% / yr"],
+                "Baseline (Default)": ["3.2% / yr", "3.8% / yr", "7.5% / yr", "3.5% / yr"],
+                "Stress Test": ["4.5% / yr", "5.5% / yr", "11.0% / yr", "5.0% / yr"],
+                "Where These Rates Come From": [
+                    "U.S. Bureau of Labor Statistics (BLS) Houston grocery price trends & USDA food plans (~2.5% historical average; 3.2% accounts for recent supply-chain price swings).",
+                    "BLS Houston energy inflation data, Texas residential electricity rates (EIA), and local grid upgrade fees (CenterPoint / TNMP).",
+                    "Texas Dept. of Insurance (TDI) rate filings. Texas law caps standard TWIA rate hikes at 10% per year (15% after major storms), so 7.5% reflects a typical middle-ground increase.",
+                    "BLS Houston household operations trends, neighborhood landscaping contracts, and master property insurance costs."
+                ]
+            })
+            st.table(assumptions_df)
+            st.caption(
+                "**Note:** Year 1 is based on current local data, while Years 2–5 are planning estimates designed to help you compare how costs grow across different ZIP codes rather than guaranteed future prices."
+            )
 
         # --- TRANSPARENCY & METHODOLOGY DISCLOSURE ---
         with st.expander("ℹ️ Methodology & Empirical Rate Assumptions (Transparency Guide)"):
