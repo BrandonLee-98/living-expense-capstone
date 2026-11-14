@@ -235,7 +235,6 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
     for i, (label, tgt_val, alt_val) in enumerate(items):
         if i % 2 == 0:
             p.setFillColorRGB(0.97, 0.97, 0.97) 
-            # FIXED: Expanded the height of the stripe to encompass the text properly
             p.rect(40, y_pos - 7, width - 80, 24, fill=1, stroke=0)
         
         p.setFillColorRGB(0, 0, 0)
@@ -257,7 +256,7 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
     if not is_optimal:
         p.drawRightString(width - 40, y_pos - 10, f"${alt_total:,.2f}")
         
-    y_pos -= 45 # Shifted down to provide breathing room
+    y_pos -= 45 
     
     # Savings Highlight Callout
     p.setFillColorRGB(0, 0, 0)
@@ -267,12 +266,10 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
         
         p.setFillColorRGB(0.9, 0.98, 0.9) 
         p.setStrokeColorRGB(0.2, 0.8, 0.2) 
-        # FIXED: Adjusted width and x-coordinate for balanced padding
         p.rect(width - 40 - box_width, y_pos - 22, box_width, 34, fill=1, stroke=1)
         
         p.setFillColorRGB(0.1, 0.5, 0.1) 
         p.setFont("Helvetica-Bold", 12)
-        # FIXED: Removed the emoji that caused the square block
         p.drawRightString(width - 55, y_pos - 10, f"Est. Monthly Savings: ${savings:,.2f}")
     else:
         p.setFont("Helvetica-Oblique", 10)
@@ -289,7 +286,6 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
         
         y_pos -= 20
         
-        # FIXED: Calculate text wrapping *before* drawing the box to set dynamic height
         words = ai_summary.split()
         lines = []
         current_line = ""
@@ -302,7 +298,6 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
         if current_line:
             lines.append(current_line.strip())
             
-        # Dynamically scale box height based on number of lines
         box_height = (len(lines) * 16) + 16 
         
         p.setFillColorRGB(0.95, 0.96, 0.98) 
@@ -312,7 +307,7 @@ def generate_pdf_report(zip_code, city, archetype, pop_growth, total_cost, food,
         p.rect(40, y_pos - box_height, 4, box_height, fill=1, stroke=0)
         
         p.setFillColorRGB(0.1, 0.1, 0.1)
-        textobject = p.beginText(55, y_pos - 18) # Provide top padding
+        textobject = p.beginText(55, y_pos - 18) 
         textobject.setFont("Helvetica", 10)
         textobject.setLeading(16) 
         
@@ -464,19 +459,16 @@ def main():
     
     alt_total_cost = alt_pred_food + alt_pred_utils + alt_pred_hoa + alt_pred_twia
 
-  # --- PDF EXPORT COMPONENT (AI ENHANCED) - MOVED TO SIDEBAR ---
+    # --- PDF EXPORT COMPONENT (AI ENHANCED) - MOVED TO SIDEBAR ---
     st.sidebar.markdown("---")
     st.sidebar.header("5. Export Component")
     if st.sidebar.button("📄 Generate Executive Report PDF"):
         with st.spinner("Generating AI Narrative & Building PDF..."):
-            
-            # FIXED: Changed is_optimal to is_optimal_target
             narrative = generate_ai_narrative(
                 city_name, total_cost, pred_food, pred_utils, pred_twia, 
                 is_optimal_target, alt_zip, alt_city, alt_total_cost
             )
             
-            # FIXED: Changed is_optimal to is_optimal_target
             pdf_buffer = generate_pdf_report(
                 zip_query, city_name, archetype, pop_growth_pct, 
                 total_cost, pred_food, pred_utils, pred_twia, pred_hoa,
@@ -515,14 +507,14 @@ def main():
 
     st.markdown("---")
 
-# --- DEEP DIVE TABS ---
+    # --- DEEP DIVE TABS ---
     tab1, tab2, tab3, tab6, tab4, tab5, tab7, tab8 = st.tabs([
         "💰 Itemized Breakdown & Comparison",
         "🌊 Flood & MUD Risk",
         "⚡ Utility Grid Detail",
         "🎯 Budget Recommender",
         "📊 ML Explainability & Diagnostics",
-        "🗺️ Phase 03 Project Roadmap",
+        "🗺️ Project Execution Roadmap",
         "🤖 AI Architecture & Framework",
         "🧪 Live System Diagnostics"
     ])
@@ -703,7 +695,6 @@ def main():
         * **What it means:** This provides a statistical breakdown that confirms the simulated parameters worked exactly as intended. It demonstrates how the engine behaves across a wide spectrum of realistic living situations to ensure accurate testing.
         """)
 
-        # Add the Feature Matrix Table here
         matrix_data = {
             "Feature": ["sqft", "occupants", "pct_area_100yr_flood", "twia_mandatory", 
                         "water_mud_flag", "houston_cpi_food_scalar", "effective_tax_rate_pct", "five_year_pop_growth_pct"],
@@ -716,7 +707,6 @@ def main():
         st.table(pd.DataFrame(matrix_data))
 
         st.markdown("""
-        
         *Baseline Intercepts established by the model:*
         * **Food Cost:** 1,314.46 USD
         * **HOA / Maintenance:** 207.06 USD
@@ -854,6 +844,58 @@ def main():
                 """)
             st.divider()
 
+        st.subheader("Phase 04 Execution Roadmap: Working Prototype, Integration & Deployment")
+
+        with st.container():
+            col1, col2 = st.columns([1, 3])
+            with col1:
+                st.markdown("#### Week 11")
+                st.caption("Application Development & Component Engineering")
+                st.info("**Key Hurdle:** Migrating from flat CSV lookups to a parameterized SQLite backend while integrating external OpenAI API calls into dynamic PDF generation.")
+            with col2:
+                st.markdown("""
+                *   **Database Implementation:** Migrated regional tri-county housing and governance records into a structured SQLite database (`living_costs.db`) queried via parameterized SQL (`query_single_zip()`), preventing injection risks and accelerating single-ZIP lookups.
+                *   **API Development:** Integrated the OpenAI API (`gpt-4o-mini` via `generate_ai_narrative()`) to synthesize tailored 3-sentence executive cost summaries and arbitrage migration insights.
+                *   **Component Development:** Upgraded the ReportLab `generate_pdf_report()` engine with dynamic text-wrapping containers, zebra-striped breakdown tables, savings callout boxes, and in-memory `io.BytesIO()` streaming.
+                *   **UI Implementation:** Expanded the dashboard with sidebar export controls, the radius-based **Budget Recommender** tab, and comprehensive AI/XAI framework documentation.
+
+                **Contributors:** Brandon Matias & Taki Eddine Boubekri
+                """)
+            st.divider()
+
+        with st.container():
+            col1, col2 = st.columns([1, 3])
+            with col1:
+                st.markdown("#### Week 12")
+                st.caption("System Integration, Optimization & Testing")
+                st.info("**Key Hurdle:** Fortifying the app against malformed user inputs and directory shifts while locking ML inference latency securely under 150ms.")
+            with col2:
+                st.markdown("""
+                *   **Performance Optimization:** Applied Streamlit's `@st.cache_resource` and `@st.cache_data` decorators strictly to the `.joblib` XGBoost model load and SQLite database ingestion, ensuring sub-150ms inference latency.
+                *   **Bug Fixing & Edge-Case Hardening:** Added graceful handling for non-numeric or unmapped ZIP inputs (`st.stop()` validation) and built a multi-path fallback loader (`render_image()`) so SHAP diagnostic plots render regardless of launch directory.
+                *   **Automated Unit & Integration Testing (`pytest`):** Authored `test_app.py` and an interactive **Live System Diagnostics** tab (`Tab 8`) to verify Haversine Great-Circle distance math, deterministic TWIA $125/mo coastal surcharges, and spatial arbitrage routing.
+                *   **End-to-End Integration:** Validated seamless data flow across SQLite queries, multi-output XGBoost inference, spatial filtering, OpenAI summarization, and ReportLab PDF exports.
+
+                **Contributors:** Jonah Joseph, Khadijah Patience & Brandon Matias
+                """)
+            st.divider()
+
+        with st.container():
+            col1, col2 = st.columns([1, 3])
+            with col1:
+                st.markdown("#### Week 13")
+                st.caption("Deployment Preparation & Final Deliverables")
+                st.info("**Key Hurdle:** Configuring cloud environment secrets and packaging a self-contained, reproducible MVP deliverable for live demonstration.")
+            with col2:
+                st.markdown("""
+                *   **Deployment Environment Setup:** Deployed the production prototype to Streamlit Community Cloud with automated GitHub CI/CD pipelines and encrypted `OPENAI_API_KEY` secret management.
+                *   **System Documentation Finalized:** Completed comprehensive repository documentation (`README.md`, `requirements.txt`, and in-app XAI explainability guides) for full audit transparency.
+                *   **Demonstration & Deliverable Packaging:** Prepared the live "Glass Box" walkthrough and packaged all production source code, SQLite database, serialized model artifacts, and `pytest` suites into the final Phase 04 submission archive.
+
+                **Contributors:** Brandon Matias, Khadijah Patience, Jonah Joseph & Taki Eddine Boubekri
+                """)
+            st.divider()
+
     with tab7:
         st.header("🤖 AI Architecture & Framework")
         st.markdown("""
@@ -923,6 +965,7 @@ def main():
         * **Coastal Windstorm Surcharges (TWIA):** Calculated deterministically ($125/mo policy surcharge) directly from Texas Department of Insurance (TDI) eligibility boundaries.
         * **USDA Grocery Tiers:** Scaled using official USDA economy-of-scale formulas based on the selected household budget profile (Thrifty, Low-Cost, Moderate, Liberal).
         """)
+
     with tab8:
         st.header("🧪 Live System Diagnostics & Automated Testing")
         st.markdown("""
@@ -932,12 +975,12 @@ def main():
         st.divider()
         
         if st.button("▶️ Run Automated Test Suite", use_container_width=True):
-            import time # Imported here specifically for the demo delay
+            import time
             
             # --- Test 1: Haversine Math ---
             with st.status("Testing Spatial Engine (Haversine Distance Math)...", expanded=True) as status1:
-                time.sleep(0.6) # Demo delay
-                dist = calc_geo_distance_miles(29.7604, -95.3698, 32.7767, -96.7970) # Houston to Dallas
+                time.sleep(0.6)
+                dist = calc_geo_distance_miles(29.7604, -95.3698, 32.7767, -96.7970)
                 if 220 < dist < 230:
                     st.write(f"✅ Calculation Successful: Distance returned {dist:.1f} miles (Expected ~225).")
                     st.write("✅ Boundary Check: Identical coordinates return 0.0 miles.")
