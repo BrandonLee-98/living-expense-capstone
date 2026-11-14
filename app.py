@@ -572,14 +572,14 @@ def main():
         st.divider()
         st.subheader("📈 5-Year Non-Mortgage Expense Projection")
         st.caption(
-            "Projects how your estimated living costs could grow over the next 5 years based on "
-            "regional food inflation, utility demand, and coastal insurance trends."
+            "Projects how your estimated non-mortgage living costs could grow over the next 5 years based on "
+            "regional food inflation, utility demand, and coastal windstorm trends."
         )
 
         scenario = st.selectbox(
             "Select Cost Growth Scenario",
             [
-                "Baseline Gulf Coast Forecast (3.2% Food | 3.8% Utils | 7.5% Coastal Ins.)",
+                "Baseline Tri-County Forecast (3.2% Food | 3.8% Utils | 7.5% Coastal Ins.)",
                 "Conservative Low-Inflation (2.5% Food | 3.0% Utils | 4.5% Coastal Ins.)",
                 "High-Inflation & Coastal Stress Test (4.5% Food | 5.5% Utils | 11.0% Coastal Ins.)"
             ],
@@ -727,9 +727,9 @@ def main():
         with st.expander("ℹ️ How We Calculate These Numbers (Transparency Guide)"):
             st.markdown(f"""
             #### Two-Step Forecast Approach
-            Our machine learning model was trained on current housing and utility data across 279 local ZIP codes—not historical multi-year inflation data. To give you a realistic 5-year outlook without guessing beyond what the model learned, we break the calculation into two parts:
+            Our machine learning model was trained on current housing and utility data across 279 ZIP codes in Harris, Fort Bend, and Galveston counties—not historical multi-year inflation data. To give you a realistic 5-year outlook without guessing beyond what the model learned, we break the calculation into two parts:
             * **Year 1 (Today's Baseline):** Calculated directly by our AI model using your home size, household size, and local ZIP code rules.
-            * **Years 2–5 (Annual Cost Growth):** Applies realistic yearly inflation rates to each expense category based on local Gulf Coast price and insurance data.
+            * **Years 2–5 (Annual Cost Growth):** Applies realistic yearly inflation rates to each non-mortgage expense category based on Greater Houston and coastal Texas benchmarks.
 
             #### Local Population Growth Adjustment (`{zip_query}`)
             Fast-growing neighborhoods have to build new water lines, substations, and power grid capacity, which pushes utility bills up slightly faster over time.
@@ -742,7 +742,7 @@ def main():
                     "Groceries & Food",
                     "Utilities (Power, Water, Gas)",
                     "Coastal Windstorm Insurance (TWIA)",
-                    "HOA / Subdivision Dues"
+                    "HOA / Subdivision Dues (Non-Mortgage)"
                 ],
                 "Conservative": ["2.5% / yr", "3.0% / yr", "4.5% / yr", "2.5% / yr"],
                 "Baseline (Default)": ["3.2% / yr", "3.8% / yr", "7.5% / yr", "3.5% / yr"],
@@ -750,50 +750,13 @@ def main():
                 "Where These Rates Come From": [
                     "U.S. Bureau of Labor Statistics (BLS) Houston grocery price trends & USDA food plans (~2.5% historical average; 3.2% accounts for recent supply-chain price swings).",
                     "BLS Houston energy inflation data, Texas residential electricity rates (EIA), and local grid upgrade fees (CenterPoint / TNMP).",
-                    "Texas Dept. of Insurance (TDI) rate filings. Texas law caps standard TWIA rate hikes at 10% per year (15% after major storms), so 7.5% reflects a typical middle-ground increase.",
-                    "BLS Houston household operations trends, neighborhood landscaping contracts, and master property insurance costs."
+                    "Texas Dept. of Insurance (TDI) filings for coastal catastrophe zones (Galveston & eastern Harris County). Texas law caps standard TWIA rate hikes at 10% per year (15% after major storms), so 7.5% reflects a middle-ground increase.",
+                    "BLS Houston household operations trends covering common-area landscaping, community pools/parks, street lighting, and neighborhood management fees (excludes mortgage-escrowed homeowner insurance)."
                 ]
             })
             st.table(assumptions_df)
             st.caption(
-                "**Note:** Year 1 is based on current local data, while Years 2–5 are planning estimates designed to help you compare how costs grow across different ZIP codes rather than guaranteed future prices."
-            )
-
-        # --- TRANSPARENCY & METHODOLOGY DISCLOSURE ---
-        with st.expander("ℹ️ Methodology & Empirical Rate Assumptions (Transparency Guide)"):
-            st.markdown(f"""
-            #### Hybrid Two-Stage Forecasting Architecture
-            Because `xgboost_cost_model.joblib` is trained on a cross-sectional spatial snapshot of 279 Gulf Coast ZIP codes rather than multi-year longitudinal time-series data, tree models cannot extrapolate future years directly without clamping at leaf boundaries. Instead, this module separates **empirical baseline prediction** from **actuarial scenario escalation**:
-            * **Year 1 (`t = 0`):** Exact empirical output from the supervised XGBoost regressor and statutory $125/mo TWIA boundary rules.
-            * **Years 2–5 (`t = 1..4`):** Compound annual escalation (`Cost_t = Cost_0 × (1 + r)^t`) calibrated to regional regulatory and macroeconomic benchmarks.
-
-            #### Active ZIP Utility Demand Adjustment (`{zip_query}`)
-            To reflect localized grid and water/wastewater infrastructure expansion costs in rapidly growing suburbs, base utility escalation (`{r_utils*100:.1f}%`) is adjusted using this ZIP's empirical 5-year population growth rate (`{pop_growth_pct:+.1f}%`):
-            * **Formula:** `+0.02%` per `1.0%` of positive 5-year population growth (capped at `+1.50%`).
-            * **Applied Adjustment for {zip_query}:** `+{pop_demand_adj*100:.2f}%` → **Effective Utility Escalation Rate: `{r_utils_target*100:.2f}%/yr`**
-            """)
-
-            assumptions_df = pd.DataFrame({
-                "Expense Category": [
-                    "Groceries & Food",
-                    "Utilities (Elec / Water / Gas)",
-                    "Coastal Windstorm (TWIA)",
-                    "Subdivision / HOA Dues"
-                ],
-                "Conservative": ["2.5% / yr", "3.0% / yr", "4.5% / yr", "2.5% / yr"],
-                "Baseline (Default)": ["3.2% / yr", "3.8% / yr", "7.5% / yr", "3.5% / yr"],
-                "Stress Test": ["4.5% / yr", "5.5% / yr", "11.0% / yr", "5.0% / yr"],
-                "Empirical Anchor & Regulatory Source": [
-                    "BLS Houston-The Woodlands-Sugar Land CPI (Food at Home) & USDA Food Plans",
-                    "BLS Houston Energy CPI, EIA Texas Residential Tariffs & PUCT TDU Delivery Riders",
-                    "Texas Dept. of Insurance (TDI) Rate Filings & TX Ins. Code Ch. 2210 (10% Statutory Cap)",
-                    "BLS Houston Household Operations CPI & Master-Policy Property Insurance Trends"
-                ]
-            })
-            st.table(assumptions_df)
-            st.caption(
-                "**Model Limitation Note:** Year 1 figures reflect supervised ML inference; Years 2–5 represent deterministic sensitivity trajectories "
-                "designed to compare relative spatial cost divergence rather than guarantee future macroeconomic rates."
+                "**Note:** Year 1 is based on current local data, while Years 2–5 are planning estimates designed to help you compare how non-mortgage costs grow across different ZIP codes rather than guaranteed future prices."
             )
     
     with tab2:
