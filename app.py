@@ -565,7 +565,7 @@ def main():
             })
             st.table(comp_df)
         else:
-            st.info(f"💡 **Arbitrage Found:** Evaluating nearby **ZIP {alt_zip} ({alt_city})** — ~{dist_miles:.1f} miles away. Total Cost: ${alt_total_cost:,.2f}")
+            st.info(f"💡 **Arbitrage Found:** Evaluating nearby **ZIP {alt_zip} ({alt_city})** — ~{dist_miles:.1f} miles away (straight-line). Total Cost: ${alt_total_cost:,.2f}")
             comp_rows = ["Groceries & Food", "Utilities (Power/Water/Gas)"]
             target_vals = [f"${pred_food:,.2f}", f"${pred_utils:,.2f}"]
             alt_vals = [f"${alt_pred_food:,.2f}", f"${alt_pred_utils:,.2f}"]
@@ -909,7 +909,7 @@ def main():
                             'zip_code': 'ZIP',
                             'city_name': 'City',
                             'cluster_archetype_name': 'Archetype',
-                            'dist_to_target': 'Distance (Miles)',
+                            'dist_to_target': 'Straight-Line Distance (mi)',
                             'Estimated Total': cost_col_name
                         })
                         
