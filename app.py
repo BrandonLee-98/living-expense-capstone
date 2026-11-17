@@ -766,7 +766,7 @@ def main():
         with st.expander("ℹ️ How We Calculate These Numbers (Transparency Guide)"):
             st.markdown(f"""
             #### Two-Step Forecast Approach
-            Our machine learning model was trained on current housing and utility data across {len(df)} ZIP codes in Harris, Fort Bend, and Galveston counties—not historical multi-year inflation data. To give you a realistic 5-year outlook without guessing beyond what the model learned, we break the calculation into two parts:
+            Our machine learning model was trained on current housing and utility data across 279 ZIP codes in Harris, Fort Bend, and Galveston counties—not historical multi-year inflation data. To give you a realistic 5-year outlook without guessing beyond what the model learned, we break the calculation into two parts:
             * **Year 1 (Today's Baseline):** Calculated directly by our AI model using your home size (`{sqft_input:,} sqft`), household size (`{occupants_input}`), and local ZIP `{zip_query}` rules.
             * **Years 2–5 (Annual Cost Growth):** Applies realistic yearly inflation rates to each non-mortgage expense category based on Greater Houston and coastal Texas benchmarks.
 
@@ -1291,7 +1291,7 @@ def main():
             st.caption(
                 "**How to Read This Log:** Each row records a live Python `assert` test executed when you clicked the button above. "
                 "**Test 1** checks straight-line spherical math using a Houston-to-Dallas reference check (`224.80 mi`). "
-                "**Test 2** enforces the `$125/mo` coastal TWIA rule. **Test 3** scans all 313 SQLite ZIP records to verify coastal-to-inland arbitrage routing. "
+                "**Test 2** enforces the `$125/mo` coastal TWIA rule. **Test 3** scans all 279 SQLite ZIP records to verify coastal-to-inland arbitrage routing. "
                 f"**Test 4** benchmarks live SQLite + XGBoost prediction speed for your active ZIP `{zip_query}` against our `<150 ms` requirement. "
                 "**Test 5** verifies graceful handling of malformed text inputs (`'ABCDE'`) and SHAP chart availability."
             )
