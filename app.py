@@ -973,7 +973,7 @@ def main():
         st.subheader("3. Regression Metrics by Cost Target")
         st.markdown("""
         * **What it plots:** These three side-by-side bar charts act as our model's report card. They map out three key performance scores across all five of our cost categories (Food, Electricity, Water, Gas, and HOA): R² (overall accuracy), MAE (our average dollar mistake), and RMSE (our average mistake, but penalized more for larger errors).
-        * **What it means:** This shows the class at a glance what our model is good at. It visually proves that we are predicting Food, Water, Gas, and Electricity with incredible precision (tall R² bars near 1.0, and very short MAE/RMSE dollar bars). It also highlights that our HOA estimates are our weakest link, showing the highest average dollar error.
+        * **What it means:** This shows at a glance what our model is good at. It visually proves that we are predicting Food, Water, Gas, and Electricity with incredible precision (tall R² bars near 1.0, and very short MAE/RMSE dollar bars). It also highlights that our HOA estimates are our weakest link, showing the highest average dollar error.
         """)
         render_image("metric_summary.png", "Regression Metrics by Cost Target (R², MAE, RMSE)", BASE_DIR)
         st.divider()
@@ -981,7 +981,7 @@ def main():
         st.subheader("4. Error Distribution Charts: Residual Distributions")
         st.markdown("""
         * **What it plots:** These five charts (histograms) look like bell curves and show the distribution of our errors. The horizontal axis represents the dollar amount we were off by, and the vertical axis (how tall the bars are) shows how many times we made that specific mistake.
-        * **What it means:** This shows the spread of our mistakes. A tall, skinny spike right at the zero mark means we are consistently accurate with very few outliers (which is exactly what we see for Food and Water). The HOA chart has a wider, flatter spread, showing the class that when we miss on an HOA prediction, we tend to miss by a wider dollar range.
+        * **What it means:** This shows the spread of our mistakes. A tall, skinny spike right at the zero mark means we are consistently accurate with very few outliers (which is exactly what we see for Food and Water). The HOA chart has a wider, flatter spread, showing that when we miss on an HOA prediction, we tend to miss by a wider dollar range.
         """)
         render_image("residual_histograms.png", "Residual Distributions Across All 5 Cost Targets", BASE_DIR)
         st.divider()
@@ -990,11 +990,11 @@ def main():
         st.markdown("""
         **Actual vs. Predicted (The Blue Scatter Plots)**
         * **What it plots:** For each cost category, we plotted the actual historical cost on the horizontal axis and our model's predicted cost on the vertical axis. We also drew a red dashed diagonal line straight through the middle, which represents a "perfect fit" where the prediction exactly matches the actual cost.
-        * **What it means:** We want our blue dots to hug that red line as tightly as possible. When presenting this, point out how the dots for Food and Water are essentially perfectly lined up. For Electricity and Gas, you can point out a slight "staircase" effect, this is just a quirk of how our tree-based model groups square footage. For HOA, the dots are grouped in distinct streaks because actual HOA costs in our data are locked into three specific price tiers: 45 USD, 85 USD, and 275 USD.
+        * **What it means:** We want our blue dots to hug that red line as tightly as possible. For Electricity and Gas, you can see a slight "staircase" effect, this is just a quirk of how our tree-based model groups square footage. For HOA, the dots are grouped in distinct streaks because actual HOA costs in our data are locked into three specific price tiers: 45 USD, 85 USD, and 275 USD.
         
         **Homoscedasticity Check (The Red Scatter Plots)**
         * **What it plots:** This plots our predicted cost on the horizontal axis against our "residuals" (the exact dollar amount we were off by) on the vertical axis. A black dashed line runs across zero, representing a prediction with zero error.
-        * **What it means:** This chart checks if our model gets confused by more expensive homes. Ideally, we want the red dots scattered evenly both above and below the zero line, no matter how high the predicted cost gets. For Gas and Electricity, the errors are steady and flat across the board. However, for HOA, the class will notice the errors spread out and get larger as the predictions increase, showing exactly where our model struggles with those higher-tier ZIP codes.
+        * **What it means:** This chart checks if our model gets confused by more expensive homes. Ideally, we want the red dots scattered evenly both above and below the zero line, no matter how high the predicted cost gets. For Gas and Electricity, the errors are steady and flat across the board. However, for HOA, you will notice the errors spread out and get larger as the predictions increase, showing exactly where our model struggles with those higher-tier ZIP codes.
         """)
         
         diag_tabs = st.tabs(["Groceries & Food", "Electricity", "Water", "Natural Gas", "HOA / Maintenance"])
